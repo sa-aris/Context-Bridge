@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     api_port: int = 8000
     log_level: str = "info"
 
+    # Security (empty api_keys => auth disabled; 0 rate => limiter disabled)
+    api_keys: str = ""
+    rate_limit_per_minute: int = 0
+
+    def api_key_set(self) -> set[str]:
+        """Parse the comma-separated ``api_keys`` setting into a set."""
+        return {key.strip() for key in self.api_keys.split(",") if key.strip()}
+
     # Vector store
     qdrant_url: str = ":memory:"
     qdrant_api_key: str | None = None

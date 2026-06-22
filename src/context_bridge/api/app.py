@@ -8,10 +8,11 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from context_bridge.api.deps import build_container
 from context_bridge.api.routes import health, maintenance, memory, sessions
+from context_bridge.api.security import RateLimiter, api_key_guard, rate_limit_guard
 from context_bridge.config import Settings, get_settings
 
 logger = logging.getLogger("context_bridge")
@@ -59,11 +60,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.rate_limiter = RateLimiter(settings.rate_limit_per_minute)
 
+    guarded = [Depends(api_key_guard), Depends(rate_limit_guard)]
     app.include_router(health.router)
-    app.include_router(memory.router)
-    app.include_router(sessions.router)
-    app.include_router(maintenance.router)
+    app.include_router(memory.router, dependencies=guarded)
+    app.include_router(sessions.router, dependencies=guarded)
+    app.include_router(maintenance.router, dependencies=guarded)
     return app
 
 
