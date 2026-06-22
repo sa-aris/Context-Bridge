@@ -70,3 +70,10 @@ mypy_path = "src"
 warn_unused_ignores = true
 warn_redundant_casts = true
 ignore_missing_imports = true
+
+# numpy's stubs use PEP 695 `type` syntax that mypy rejects when targeting an
+# older python_version; skip following them (we only use numpy at runtime).
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
