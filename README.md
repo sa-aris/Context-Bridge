@@ -235,7 +235,31 @@ Interactive OpenAPI docs are served at `/docs`.
 
 See [`.env.example`](.env.example) for the complete list.
 
+## Proof: token savings benchmark
+
+A runnable benchmark compares transcript passing vs. shared-memory recall over a
+synthetic multi-agent task:
+
+```bash
+python -m context_bridge.benchmark
+```
+
+```text
+ agents   transcript     bridge   savings
+------------------------------------------
+      4          216        222     -2.8%
+      8        1,008        670     33.5%
+     16        4,320      1,566     63.8%
+     32       17,856      3,358     81.2%
+```
+
+With a handful of agents the transcript is cheap, but the advantage compounds:
+transcript passing grows ~quadratically while budgeted recall stays bounded, so
+by 32 agents Context Bridge uses **~81% fewer context tokens**.
+
 ## Deployment
+
+**Docker**
 
 ```bash
 docker build -t context-bridge .
@@ -249,11 +273,32 @@ The image runs as a non-root user and ships a `/health` healthcheck. Apply
 database migrations with `alembic upgrade head` (the API also auto-creates
 tables for local development).
 
+**Kubernetes (Helm)**
+
+```bash
+helm install cb deploy/helm/context-bridge \
+  --set image.repository=ghcr.io/you/context-bridge \
+  --set ingress.enabled=true
+```
+
+The chart includes a Deployment, Service, ConfigMap, ServiceAccount, optional
+Ingress and a CPU-based HorizontalPodAutoscaler.
+
 ## Observability
 
 `/metrics` exposes write/query/dedup counters, token-usage and chunk-count
-histograms, sweep totals and a request-latency histogram — point Prometheus at
-it to quantify the token savings. Every response carries an `X-Request-ID`.
+histograms, sweep totals and a request-latency histogram. Every response carries
+an `X-Request-ID`. Spin up a ready-made Prometheus + Grafana stack (a dashboard
+is auto-provisioned):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+# Grafana -> http://localhost:3000  (admin / admin)
+```
+
+For distributed tracing, install the `otel` extra and set `TRACING_ENABLED=true`
+with `OTEL_EXPORTER_OTLP_ENDPOINT` — the write/query pipeline stages emit spans
+via OTLP to Jaeger/Tempo/Grafana.
 
 ## Development
 
@@ -270,11 +315,10 @@ skip automatically when offline.
 
 ## Roadmap
 
-- OpenTelemetry tracing
-- Grafana dashboard + Prometheus scrape config
-- Helm chart / Kubernetes manifests
-- Pluggable reran/embedder backends (OpenAI, Cohere) as first-class extras
-- Benchmark suite quantifying token savings vs. transcript passing
+- First-class OpenAI / Cohere embedder & reranker extras
+- Streaming recall (SSE) for incremental context assembly
+- Pluggable cross-namespace access policies / RBAC
+- Managed cloud offering
 
 ## License
 

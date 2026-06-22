@@ -1,0 +1,18 @@
+Context Bridge has been deployed.
+
+1. Check the rollout:
+   kubectl rollout status deployment/{{ include "context-bridge.fullname" . }}
+
+2. Reach the API (ClusterIP by default):
+   kubectl port-forward svc/{{ include "context-bridge.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+   open http://localhost:{{ .Values.service.port }}/docs
+
+{{- if .Values.ingress.enabled }}
+
+3. Ingress is enabled. Hosts:
+   {{- range .Values.ingress.hosts }}
+   - http://{{ .host }}
+   {{- end }}
+{{- end }}
+
+Metrics are exposed at /metrics for Prometheus scraping.

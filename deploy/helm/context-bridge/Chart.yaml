@@ -1,0 +1,14 @@
+apiVersion: v2
+name: context-bridge
+description: Shared neural memory middleware for multi-agent systems
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - rag
+  - vector-database
+  - multi-agent
+  - memory
+home: https://github.com/sa-aris/context-bridge
+sources:
+  - https://github.com/sa-aris/context-bridge
