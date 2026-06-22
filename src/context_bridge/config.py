@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     api_keys: str = ""
     rate_limit_per_minute: int = 0
 
+    # Observability
+    metrics_enabled: bool = True
+
     def api_key_set(self) -> set[str]:
         """Parse the comma-separated ``api_keys`` setting into a set."""
         return {key.strip() for key in self.api_keys.split(",") if key.strip()}

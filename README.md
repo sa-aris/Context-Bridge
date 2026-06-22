@@ -87,7 +87,23 @@ with ContextBridgeClient("http://localhost:8000") as cb:
 | `DELETE` | `/memory/{id}` | Remove a record |
 | `POST` | `/memory/summarize` | Compress a session into a summary memory |
 | `GET` | `/sessions/{id}/timeline` | Episodic / provenance view |
+| `POST` | `/maintenance/sweep` | Physically delete TTL-expired memories |
 | `GET` | `/health`, `/healthz` | Liveness / readiness |
+| `GET` | `/metrics` | Prometheus metrics |
+
+## Operations
+
+- **Auth & rate limiting.** Set `API_KEYS` (comma-separated) to require an
+  `X-API-Key` header on data-plane routes; set `RATE_LIMIT_PER_MINUTE` to cap
+  per-identity request rate. Both are disabled by default. `/health` stays open.
+- **TTL & decay.** Writes may carry `ttl_seconds`; expired memories are skipped
+  at query time and physically removed by `POST /maintenance/sweep` or the
+  background sweeper (`SWEEP_INTERVAL_SECONDS`).
+- **Summarisation.** `SUMMARIZER_PROVIDER=extractive` (default, no model) or
+  `llm` to call any OpenAI-compatible chat endpoint (`LLM_BASE_URL` /
+  `LLM_MODEL`); the LLM path falls back to extractive on error.
+- **Metrics.** `/metrics` exposes write/query/dedup counters, token-usage and
+  chunk-count histograms, and request latency — quantify the token savings.
 
 ## Development
 

@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, Response
 
+from context_bridge.api import metrics
 from context_bridge.api.deps import build_container
 from context_bridge.api.routes import health, maintenance, memory, sessions
 from context_bridge.api.security import RateLimiter, api_key_guard, rate_limit_guard
@@ -62,12 +64,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter(settings.rate_limit_per_minute)
 
+    if settings.metrics_enabled:
+        _install_metrics(app)
+
     guarded = [Depends(api_key_guard), Depends(rate_limit_guard)]
     app.include_router(health.router)
     app.include_router(memory.router, dependencies=guarded)
     app.include_router(sessions.router, dependencies=guarded)
     app.include_router(maintenance.router, dependencies=guarded)
     return app
+
+
+def _install_metrics(app: FastAPI) -> None:
+    """Mount the /metrics endpoint and a request-latency middleware."""
+    app.include_router(metrics.router)
+
+    @app.middleware("http")
+    async def _latency_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        start = time.perf_counter()
+        response = await call_next(request)
+        route = request.scope.get("route")
+        endpoint = getattr(route, "path", request.url.path)
+        metrics.REQUEST_LATENCY.labels(
+            method=request.method, endpoint=endpoint, status=str(response.status_code)
+        ).observe(time.perf_counter() - start)
+        return response
 
 
 app = create_app()

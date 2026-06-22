@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from context_bridge.api import metrics
 from context_bridge.api.deps import get_manager
 from context_bridge.api.schemas import (
     ChunkOut,
@@ -37,6 +38,9 @@ def write_memory(
         dedup=req.dedup,
         summarize_before_store=req.summarize_before_store,
     )
+    metrics.WRITES.inc()
+    metrics.CHUNKS_STORED.inc(result.stored)
+    metrics.CHUNKS_DEDUPED.inc(result.deduped)
     return WriteResponse(
         ids=result.ids, stored=result.stored, deduped=result.deduped, skipped=result.skipped
     )
@@ -57,6 +61,9 @@ def query_memory(
         rerank=req.rerank,
         expand_parents=req.expand_parents,
     )
+    metrics.QUERIES.inc()
+    metrics.QUERY_TOKENS.observe(assembled.tokens_used)
+    metrics.QUERY_CHUNKS.observe(len(assembled.chunks))
     return QueryResponse.from_assembled(assembled)
 
 
