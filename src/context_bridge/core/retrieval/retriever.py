@@ -50,11 +50,7 @@ class Retriever:
         params: RetrievalParams,
     ) -> AssembledContext:
         dense = self.embedder.embed_query_dense(query)
-        sparse = (
-            self.embedder.embed_query_sparse(query)
-            if self.embedder.supports_sparse
-            else None
-        )
+        sparse = self.embedder.embed_query_sparse(query) if self.embedder.supports_sparse else None
 
         candidates = self.store.hybrid_search(
             dense=dense,

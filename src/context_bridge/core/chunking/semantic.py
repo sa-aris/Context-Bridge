@@ -54,9 +54,7 @@ class SemanticChunker:
             if count_tokens(joined) <= self.chunk_size:
                 packed.append(joined)
             else:
-                packed.extend(
-                    pack_pieces(group, size=self.chunk_size, overlap=self.overlap)
-                )
+                packed.extend(pack_pieces(group, size=self.chunk_size, overlap=self.overlap))
         return to_chunks(packed, full_text=text, parent_id=parent_id)
 
     def _group_by_similarity(self, sentences: list[str]) -> list[list[str]]:

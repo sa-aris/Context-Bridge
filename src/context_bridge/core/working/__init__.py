@@ -15,9 +15,7 @@ def build_working_memory(settings: Settings) -> WorkingMemory:
     if provider == "redis":
         from context_bridge.core.working.redis_store import RedisWorkingStore
 
-        return RedisWorkingStore(
-            url=settings.redis_url, ttl_seconds=settings.working_ttl_seconds
-        )
+        return RedisWorkingStore(url=settings.redis_url, ttl_seconds=settings.working_ttl_seconds)
     raise ValueError(f"Unknown working_provider: {settings.working_provider!r}")
 
 

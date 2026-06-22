@@ -33,8 +33,6 @@ def test_build_summarizer_default_is_extractive():
 
 def test_llm_summarizer_falls_back_when_endpoint_unreachable():
     # Unroutable endpoint -> the call fails and we expect the extractive fallback.
-    summarizer = LLMSummarizer(
-        base_url="http://127.0.0.1:1/v1", model="none", timeout=0.2
-    )
+    summarizer = LLMSummarizer(base_url="http://127.0.0.1:1/v1", model="none", timeout=0.2)
     summary = summarizer.summarize(_TEXT, max_sentences=2)
     assert summary  # non-empty: came from the fallback

@@ -21,9 +21,7 @@ router = APIRouter(prefix="/memory", tags=["memory"])
 
 
 @router.post("/write", response_model=WriteResponse)
-def write_memory(
-    req: WriteRequest, manager: MemoryManager = Depends(get_manager)
-) -> WriteResponse:
+def write_memory(req: WriteRequest, manager: MemoryManager = Depends(get_manager)) -> WriteResponse:
     result = manager.write(
         content=req.content,
         agent_id=req.agent_id,
@@ -47,9 +45,7 @@ def write_memory(
 
 
 @router.post("/query", response_model=QueryResponse)
-def query_memory(
-    req: QueryRequest, manager: MemoryManager = Depends(get_manager)
-) -> QueryResponse:
+def query_memory(req: QueryRequest, manager: MemoryManager = Depends(get_manager)) -> QueryResponse:
     assembled = manager.query(
         query=req.query,
         namespace=req.namespace,

@@ -18,16 +18,44 @@ logger = logging.getLogger("context_bridge")
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _WORD_RE = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "is", "are", "was",
-    "were", "be", "to", "of", "in", "on", "for", "with", "as", "at", "by",
-    "this", "that", "it", "we", "you", "they", "i", "from", "so", "not",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "if",
+    "then",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "with",
+    "as",
+    "at",
+    "by",
+    "this",
+    "that",
+    "it",
+    "we",
+    "you",
+    "they",
+    "i",
+    "from",
+    "so",
+    "not",
 }
 
 
 @runtime_checkable
 class Summarizer(Protocol):
-    def summarize(self, text: str, *, max_sentences: int = 5) -> str:
-        ...
+    def summarize(self, text: str, *, max_sentences: int = 5) -> str: ...
 
 
 class ExtractiveSummarizer:

@@ -190,9 +190,7 @@ class MemoryManager:
             rerank=rerank,
             expand_parents=expand_parents,
         )
-        result = self.retriever.retrieve(
-            query, namespace=namespace, filters=filters, params=params
-        )
+        result = self.retriever.retrieve(query, namespace=namespace, filters=filters, params=params)
         if session_id:
             self.episodes.record(
                 session_id=session_id,

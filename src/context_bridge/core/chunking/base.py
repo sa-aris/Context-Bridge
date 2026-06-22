@@ -17,8 +17,7 @@ class Chunker(Protocol):
     match on a small chunk, then expand to its parent for fuller context.
     """
 
-    def chunk(self, text: str, *, parent_id: str | None = None) -> list[Chunk]:
-        ...
+    def chunk(self, text: str, *, parent_id: str | None = None) -> list[Chunk]: ...
 
 
 def pack_pieces(pieces: list[str], *, size: int, overlap: int, sep: str = " ") -> list[str]:
@@ -60,6 +59,5 @@ def to_chunks(texts: list[str], *, full_text: str, parent_id: str | None) -> lis
     """Wrap raw chunk strings into :class:`Chunk` objects sharing a parent."""
     pid = parent_id or new_id()
     return [
-        Chunk(text=t, index=i, parent_id=pid, parent_text=full_text)
-        for i, t in enumerate(texts)
+        Chunk(text=t, index=i, parent_id=pid, parent_text=full_text) for i, t in enumerate(texts)
     ]

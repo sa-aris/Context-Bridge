@@ -26,9 +26,7 @@ SPARSE = "sparse"
 _RRF_K = 60
 
 
-def _reciprocal_rank_fusion(
-    ranked_lists: list[list[str]], *, k: int = _RRF_K
-) -> dict[str, float]:
+def _reciprocal_rank_fusion(ranked_lists: list[list[str]], *, k: int = _RRF_K) -> dict[str, float]:
     """Fuse several ranked id lists into a single id -> score map."""
     scores: dict[str, float] = {}
     for ranked in ranked_lists:
@@ -100,9 +98,7 @@ class QdrantStore:
                 vector[SPARSE] = models.SparseVector(
                     indices=r.sparse.indices, values=r.sparse.values
                 )
-            points.append(
-                models.PointStruct(id=r.id, vector=vector, payload=self._to_payload(r))
-            )
+            points.append(models.PointStruct(id=r.id, vector=vector, payload=self._to_payload(r)))
         self.client.upsert(collection_name=self.collection, points=points)
 
     # -- reads ------------------------------------------------------------
@@ -216,9 +212,7 @@ class QdrantStore:
                 models.FieldCondition(key="namespace", match=models.MatchValue(value=namespace))
             )
         for key, value in (filters or {}).items():
-            must.append(
-                models.FieldCondition(key=key, match=models.MatchValue(value=value))
-            )
+            must.append(models.FieldCondition(key=key, match=models.MatchValue(value=value)))
         return models.Filter(must=must) if must else None
 
     @staticmethod

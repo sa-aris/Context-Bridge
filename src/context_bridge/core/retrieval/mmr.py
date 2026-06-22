@@ -41,8 +41,7 @@ def mmr_select(
 
     relevance = _normalise_relevance(chunks)
     vectors = {
-        c.id: np.asarray(c.dense, dtype=np.float32) if c.dense is not None else None
-        for c in chunks
+        c.id: np.asarray(c.dense, dtype=np.float32) if c.dense is not None else None for c in chunks
     }
 
     selected: list[RetrievedChunk] = []
