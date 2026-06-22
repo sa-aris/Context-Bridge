@@ -19,7 +19,7 @@ def test_readiness_endpoint(client):
 
 def test_write_query_timeline_flow(client):
     write = client.post(
-        "/memory/write",
+        "/v1/memory/write",
         json={
             "content": "The incident was caused by an expired TLS certificate on the gateway.",
             "agent_id": "agent-sre",
@@ -31,7 +31,7 @@ def test_write_query_timeline_flow(client):
     assert write.json()["stored"] == 1
 
     query = client.post(
-        "/memory/query",
+        "/v1/memory/query",
         json={
             "query": "what caused the incident?",
             "namespace": "ops",
@@ -45,11 +45,11 @@ def test_write_query_timeline_flow(client):
     assert body["tokens_used"] <= 150
     assert body["sources"][0]["agent_id"] == "agent-sre"
 
-    timeline = client.get("/sessions/api-sess/timeline")
+    timeline = client.get("/v1/sessions/api-sess/timeline")
     assert timeline.status_code == 200
     assert {e["kind"] for e in timeline.json()["episodes"]} >= {"write", "query"}
 
 
 def test_get_missing_record_returns_404(client):
-    resp = client.get("/memory/does-not-exist")
+    resp = client.get("/v1/memory/does-not-exist")
     assert resp.status_code == 404

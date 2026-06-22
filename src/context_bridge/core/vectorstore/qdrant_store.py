@@ -189,6 +189,20 @@ class QdrantStore:
         self.delete(expired)
         return len(expired)
 
+    def list_records(
+        self, *, namespace: str | None, limit: int, cursor: str | None
+    ) -> tuple[list[RetrievedChunk], str | None]:
+        points, next_offset = self.client.scroll(
+            collection_name=self.collection,
+            scroll_filter=self._build_filter(namespace, None),
+            limit=limit,
+            offset=cursor,
+            with_payload=True,
+            with_vectors=False,
+        )
+        chunks = [self._to_chunk(point, score=0.0) for point in points]
+        return chunks, (str(next_offset) if next_offset is not None else None)
+
     # -- helpers ----------------------------------------------------------
     def _hydrate(self, ids: list[str], scores: dict[str, float]) -> list[RetrievedChunk]:
         records = self.client.retrieve(
@@ -222,7 +236,8 @@ class QdrantStore:
             "content": r.content,
             "namespace": r.namespace,
             "parent_id": r.parent_id,
-            "parent_text": r.parent_text,
+            # parent text is intentionally not stored here; it lives once in the
+            # parent-document store and is hydrated on demand for expansion.
             "tags": r.tags,
             "metadata": r.metadata,
             "provenance": {

@@ -29,6 +29,14 @@ class WriteResponse(BaseModel):
     skipped: bool = False
 
 
+class WriteBatchRequest(BaseModel):
+    items: list[WriteRequest] = Field(..., min_length=1, max_length=256)
+
+
+class WriteBatchResponse(BaseModel):
+    results: list[WriteResponse]
+
+
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1)
     namespace: str = "default"
@@ -104,6 +112,11 @@ class TimelineResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     components: dict[str, str]
+
+
+class ListResponse(BaseModel):
+    chunks: list[ChunkOut]
+    next_cursor: str | None = None
 
 
 class SweepResponse(BaseModel):

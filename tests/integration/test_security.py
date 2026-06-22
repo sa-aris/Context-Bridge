@@ -24,7 +24,7 @@ def _settings(tmp_path, **overrides) -> Settings:
 def test_missing_api_key_is_rejected(tmp_path):
     app = create_app(_settings(tmp_path, api_keys="secret-1,secret-2"))
     with TestClient(app) as client:
-        resp = client.post("/memory/query", json={"query": "anything"})
+        resp = client.post("/v1/memory/query", json={"query": "anything"})
         assert resp.status_code == 401
 
 
@@ -32,7 +32,7 @@ def test_valid_api_key_is_accepted(tmp_path):
     app = create_app(_settings(tmp_path, api_keys="secret-1,secret-2"))
     with TestClient(app) as client:
         resp = client.post(
-            "/memory/query",
+            "/v1/memory/query",
             json={"query": "anything"},
             headers={"X-API-Key": "secret-2"},
         )
@@ -49,6 +49,6 @@ def test_rate_limit_blocks_excess_requests(tmp_path):
     app = create_app(_settings(tmp_path, rate_limit_per_minute=2))
     with TestClient(app) as client:
         payload = {"query": "anything"}
-        assert client.post("/memory/query", json=payload).status_code == 200
-        assert client.post("/memory/query", json=payload).status_code == 200
-        assert client.post("/memory/query", json=payload).status_code == 429
+        assert client.post("/v1/memory/query", json=payload).status_code == 200
+        assert client.post("/v1/memory/query", json=payload).status_code == 200
+        assert client.post("/v1/memory/query", json=payload).status_code == 429

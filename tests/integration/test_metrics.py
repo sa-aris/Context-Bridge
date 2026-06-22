@@ -5,7 +5,7 @@ from __future__ import annotations
 
 def test_metrics_endpoint_reports_activity(client):
     client.post(
-        "/memory/write",
+        "/v1/memory/write",
         json={
             "content": "Cache invalidation happens on every deploy.",
             "agent_id": "a",
@@ -13,7 +13,7 @@ def test_metrics_endpoint_reports_activity(client):
             "namespace": "ns",
         },
     )
-    client.post("/memory/query", json={"query": "cache", "namespace": "ns"})
+    client.post("/v1/memory/query", json={"query": "cache", "namespace": "ns"})
 
     resp = client.get("/metrics")
     assert resp.status_code == 200

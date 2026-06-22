@@ -35,5 +35,15 @@ def readiness(container: Container = Depends(get_container)) -> HealthResponse:
     except Exception as exc:  # pragma: no cover - depends on live infra
         components["vector_store"] = f"error: {exc}"
 
+    settings = container.settings
+    if "redis" in (settings.working_provider, settings.rate_limit_backend):
+        try:  # pragma: no cover - depends on live infra
+            import redis
+
+            redis.Redis.from_url(settings.redis_url).ping()
+            components["redis"] = "ok"
+        except Exception as exc:  # pragma: no cover - depends on live infra
+            components["redis"] = f"error: {exc}"
+
     status = "ok" if all(v == "ok" for v in components.values()) else "degraded"
     return HealthResponse(status=status, components=components)

@@ -16,6 +16,7 @@ from context_bridge.core.memory.policy import WritePolicy, cosine
 from context_bridge.core.memory.summarizer import ExtractiveSummarizer, Summarizer
 from context_bridge.core.models import (
     AssembledContext,
+    Chunk,
     MemoryRecord,
     Provenance,
     SparseVector,
@@ -24,7 +25,7 @@ from context_bridge.core.models import (
 from context_bridge.core.retrieval.retriever import RetrievalParams, Retriever
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working.base import WorkingMemory
-from context_bridge.db.repository import EpisodeRepository
+from context_bridge.db.repository import EpisodeRepository, ParentRepository
 
 _EPISODE_CONTENT_CAP = 2000
 
@@ -51,6 +52,7 @@ class MemoryManager:
         retriever: Retriever,
         working: WorkingMemory,
         episodes: EpisodeRepository,
+        parents: ParentRepository,
         policy: WritePolicy,
         defaults: RetrievalParams,
         summarizer: Summarizer | None = None,
@@ -61,6 +63,7 @@ class MemoryManager:
         self.retriever = retriever
         self.working = working
         self.episodes = episodes
+        self.parents = parents
         self.policy = policy
         self.defaults = defaults
         self.summarizer = summarizer or ExtractiveSummarizer()
@@ -122,7 +125,8 @@ class MemoryManager:
                         ttl_seconds=ttl_seconds,
                     ),
                     parent_id=chunk.parent_id,
-                    parent_text=chunk.parent_text,
+                    # parent text lives once in the parent store, not in the payload
+                    parent_text=None,
                     tags=tags or [],
                     metadata=metadata or {},
                     dense=dense,
@@ -132,6 +136,7 @@ class MemoryManager:
 
         if records:
             self.store.upsert(records)
+            self._persist_parents(chunks, records, namespace)
 
         ids = [r.id for r in records]
         self.episodes.record(
@@ -149,6 +154,21 @@ class MemoryManager:
             {"kind": "write", "agent_id": agent_id, "content": content[:500]},
         )
         return WriteResult(ids=ids, stored=len(ids), deduped=deduped)
+
+    def _persist_parents(
+        self, chunks: list[Chunk], records: list[MemoryRecord], namespace: str
+    ) -> None:
+        """Store each stored chunk's parent document once (small-to-big)."""
+        stored_parents = {r.parent_id for r in records}
+        seen: set[str] = set()
+        for chunk in chunks:
+            if chunk.parent_id in stored_parents and chunk.parent_id not in seen:
+                seen.add(chunk.parent_id)
+                self.parents.upsert(
+                    parent_id=chunk.parent_id,
+                    namespace=namespace,
+                    text=chunk.parent_text or chunk.text,
+                )
 
     def _is_duplicate(
         self,
@@ -245,6 +265,10 @@ class MemoryManager:
     def sweep_expired(self) -> int:
         """Physically remove TTL-expired memories from the semantic store."""
         return self.store.sweep_expired()
+
+    def list_records(self, *, namespace: str | None, limit: int, cursor: str | None):
+        """Page through stored memories, optionally filtered by namespace."""
+        return self.store.list_records(namespace=namespace, limit=limit, cursor=cursor)
 
     # -- working memory ---------------------------------------------------
     def remember_turn(self, session_id: str, item: dict) -> None:

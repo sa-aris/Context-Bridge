@@ -58,3 +58,21 @@ class Episode(Base):
             "confidence": self.confidence,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ParentDocument(Base):
+    """The full source text for a set of child chunks (small-to-big).
+
+    Storing the parent once here — rather than duplicating it inside every
+    child chunk's vector payload — keeps the vector store lean while still
+    allowing retrieval to expand a matched chunk back to its broader context.
+    """
+
+    __tablename__ = "parent_documents"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )

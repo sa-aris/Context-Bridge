@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from context_bridge.core.models import new_id
-from context_bridge.db.models import Episode
+from context_bridge.db.models import Episode, ParentDocument
 from context_bridge.db.session import Database
 
 
@@ -55,3 +55,26 @@ class EpisodeRepository:
         )
         with self.db.session() as session:
             return [e.as_dict() for e in session.scalars(stmt)]
+
+
+class ParentRepository:
+    """Stores and retrieves parent documents for the small-to-big strategy."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def upsert(self, *, parent_id: str, namespace: str, text: str) -> None:
+        with self.db.session() as session:
+            existing = session.get(ParentDocument, parent_id)
+            if existing is not None:
+                existing.text = text
+                existing.namespace = namespace
+            else:
+                session.add(ParentDocument(id=parent_id, namespace=namespace, text=text))
+
+    def get_texts(self, parent_ids: list[str]) -> dict[str, str]:
+        if not parent_ids:
+            return {}
+        stmt = select(ParentDocument).where(ParentDocument.id.in_(set(parent_ids)))
+        with self.db.session() as session:
+            return {p.id: p.text for p in session.scalars(stmt)}

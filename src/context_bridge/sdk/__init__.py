@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from context_bridge.sdk.client import ContextBridgeClient
+from context_bridge.sdk.client import AsyncContextBridgeClient, ContextBridgeClient
 
-__all__ = ["ContextBridgeClient"]
+__all__ = ["ContextBridgeClient", "AsyncContextBridgeClient"]

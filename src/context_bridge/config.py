@@ -27,7 +27,10 @@ class Settings(BaseSettings):
 
     # Security (empty api_keys => auth disabled; 0 rate => limiter disabled)
     api_keys: str = ""
+    api_key_namespaces: str = ""  # JSON: {"key": ["ns-a", "ns-b"]}; "*" = all
     rate_limit_per_minute: int = 0
+    rate_limit_backend: str = "memory"  # "memory" or "redis"
+    cors_allow_origins: str = "*"  # comma-separated, or "*"
 
     # Observability
     metrics_enabled: bool = True
@@ -35,6 +38,18 @@ class Settings(BaseSettings):
     def api_key_set(self) -> set[str]:
         """Parse the comma-separated ``api_keys`` setting into a set."""
         return {key.strip() for key in self.api_keys.split(",") if key.strip()}
+
+    def api_key_namespace_map(self) -> dict[str, list[str]]:
+        """Parse the per-key namespace allow-list (empty => all keys get '*')."""
+        if not self.api_key_namespaces.strip():
+            return {}
+        import json
+
+        data = json.loads(self.api_key_namespaces)
+        return {str(k): list(v) for k, v in data.items()}
+
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
     # Vector store
     qdrant_url: str = ":memory:"

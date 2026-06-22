@@ -18,7 +18,7 @@ from context_bridge.core.retrieval.retriever import RetrievalParams
 from context_bridge.core.vectorstore import build_vector_store
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working import build_working_memory
-from context_bridge.db import Database, EpisodeRepository
+from context_bridge.db import Database, EpisodeRepository, ParentRepository
 
 
 @dataclass(slots=True)
@@ -38,13 +38,19 @@ def build_container(settings: Settings) -> Container:
     store = build_vector_store(
         settings, dim=embedder.dense_dim, supports_sparse=embedder.supports_sparse
     )
-    reranker = build_reranker(settings)
-    retriever = Retriever(embedder=embedder, store=store, reranker=reranker)
-
     working = build_working_memory(settings)
     db = Database(settings.database_url)
     db.create_all()
     episodes = EpisodeRepository(db)
+    parents = ParentRepository(db)
+
+    reranker = build_reranker(settings)
+    retriever = Retriever(
+        embedder=embedder,
+        store=store,
+        reranker=reranker,
+        parent_lookup=parents.get_texts,
+    )
 
     policy = WritePolicy(
         dedup_threshold=settings.dedup_threshold,
@@ -63,6 +69,7 @@ def build_container(settings: Settings) -> Container:
         retriever=retriever,
         working=working,
         episodes=episodes,
+        parents=parents,
         policy=policy,
         defaults=defaults,
         summarizer=build_summarizer(settings),

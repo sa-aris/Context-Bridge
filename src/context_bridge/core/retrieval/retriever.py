@@ -6,6 +6,7 @@ cross-encoder rerank -> MMR diversification -> token-budgeted assembly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from context_bridge.core.embeddings.base import Embedder
@@ -14,6 +15,8 @@ from context_bridge.core.retrieval.budget import assemble
 from context_bridge.core.retrieval.mmr import mmr_select
 from context_bridge.core.retrieval.reranker import Reranker
 from context_bridge.core.vectorstore.base import VectorStore
+
+ParentLookup = Callable[[list[str]], dict[str, str]]
 
 
 @dataclass(slots=True)
@@ -36,10 +39,12 @@ class Retriever:
         embedder: Embedder,
         store: VectorStore,
         reranker: Reranker,
+        parent_lookup: ParentLookup | None = None,
     ) -> None:
         self.embedder = embedder
         self.store = store
         self.reranker = reranker
+        self.parent_lookup = parent_lookup
 
     def retrieve(
         self,
@@ -67,11 +72,20 @@ class Retriever:
             candidates = self.reranker.rerank(query, candidates)
 
         selected = mmr_select(candidates, lambda_=params.mmr_lambda, top_k=params.top_k)
+        if params.expand_parents and self.parent_lookup is not None:
+            self._hydrate_parents(selected)
         return assemble(
             selected,
             token_budget=params.token_budget,
             expand_parents=params.expand_parents,
         )
+
+    def _hydrate_parents(self, chunks: list[RetrievedChunk]) -> None:
+        assert self.parent_lookup is not None
+        parent_ids = [c.parent_id for c in chunks if c.parent_id]
+        texts = self.parent_lookup(parent_ids)
+        for chunk in chunks:
+            chunk.parent_text = texts.get(chunk.parent_id)
 
     @staticmethod
     def _drop_expired(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:

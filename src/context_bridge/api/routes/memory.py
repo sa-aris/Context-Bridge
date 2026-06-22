@@ -2,26 +2,29 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from context_bridge.api import metrics
 from context_bridge.api.deps import get_manager
 from context_bridge.api.schemas import (
     ChunkOut,
+    ListResponse,
     QueryRequest,
     QueryResponse,
     SummarizeRequest,
     SummarizeResponse,
+    WriteBatchRequest,
+    WriteBatchResponse,
     WriteRequest,
     WriteResponse,
 )
+from context_bridge.api.security import authorize_namespace
 from context_bridge.core.memory.manager import MemoryManager
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 
-@router.post("/write", response_model=WriteResponse)
-def write_memory(req: WriteRequest, manager: MemoryManager = Depends(get_manager)) -> WriteResponse:
+def _do_write(manager: MemoryManager, req: WriteRequest) -> WriteResponse:
     result = manager.write(
         content=req.content,
         agent_id=req.agent_id,
@@ -44,8 +47,28 @@ def write_memory(req: WriteRequest, manager: MemoryManager = Depends(get_manager
     )
 
 
+@router.post("/write", response_model=WriteResponse)
+def write_memory(
+    req: WriteRequest, request: Request, manager: MemoryManager = Depends(get_manager)
+) -> WriteResponse:
+    authorize_namespace(request, req.namespace)
+    return _do_write(manager, req)
+
+
+@router.post("/write_batch", response_model=WriteBatchResponse)
+def write_memory_batch(
+    req: WriteBatchRequest, request: Request, manager: MemoryManager = Depends(get_manager)
+) -> WriteBatchResponse:
+    for item in req.items:
+        authorize_namespace(request, item.namespace)
+    return WriteBatchResponse(results=[_do_write(manager, item) for item in req.items])
+
+
 @router.post("/query", response_model=QueryResponse)
-def query_memory(req: QueryRequest, manager: MemoryManager = Depends(get_manager)) -> QueryResponse:
+def query_memory(
+    req: QueryRequest, request: Request, manager: MemoryManager = Depends(get_manager)
+) -> QueryResponse:
+    authorize_namespace(request, req.namespace)
     assembled = manager.query(
         query=req.query,
         namespace=req.namespace,
@@ -63,6 +86,19 @@ def query_memory(req: QueryRequest, manager: MemoryManager = Depends(get_manager
     return QueryResponse.from_assembled(assembled)
 
 
+@router.get("", response_model=ListResponse)
+def list_memory(
+    request: Request,
+    namespace: str = Query(default="default"),
+    limit: int = Query(default=50, ge=1, le=500),
+    cursor: str | None = Query(default=None),
+    manager: MemoryManager = Depends(get_manager),
+) -> ListResponse:
+    authorize_namespace(request, namespace)
+    chunks, next_cursor = manager.list_records(namespace=namespace, limit=limit, cursor=cursor)
+    return ListResponse(chunks=[ChunkOut.from_chunk(c) for c in chunks], next_cursor=next_cursor)
+
+
 @router.get("/{record_id}", response_model=ChunkOut)
 def get_memory(record_id: str, manager: MemoryManager = Depends(get_manager)) -> ChunkOut:
     chunk = manager.get(record_id)
@@ -78,8 +114,9 @@ def delete_memory(record_id: str, manager: MemoryManager = Depends(get_manager))
 
 @router.post("/summarize", response_model=SummarizeResponse)
 def summarize_session(
-    req: SummarizeRequest, manager: MemoryManager = Depends(get_manager)
+    req: SummarizeRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> SummarizeResponse:
+    authorize_namespace(request, req.namespace)
     result = manager.summarize_session(
         session_id=req.session_id,
         namespace=req.namespace,

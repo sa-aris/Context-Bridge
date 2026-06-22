@@ -29,7 +29,7 @@ def test_sweep_removes_only_expired(manager: MemoryManager):
 
 def test_sweep_endpoint(client):
     client.post(
-        "/memory/write",
+        "/v1/memory/write",
         json={
             "content": "ephemeral api note",
             "agent_id": "a",
@@ -38,6 +38,6 @@ def test_sweep_endpoint(client):
             "ttl_seconds": 0,
         },
     )
-    resp = client.post("/maintenance/sweep")
+    resp = client.post("/v1/maintenance/sweep")
     assert resp.status_code == 200
     assert resp.json()["deleted"] >= 1

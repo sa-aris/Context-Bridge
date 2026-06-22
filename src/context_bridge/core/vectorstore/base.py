@@ -47,3 +47,9 @@ class VectorStore(Protocol):
     def sweep_expired(self, *, batch_size: int = 256) -> int:
         """Physically delete records whose TTL has elapsed; return the count."""
         ...
+
+    def list_records(
+        self, *, namespace: str | None, limit: int, cursor: str | None
+    ) -> tuple[list[RetrievedChunk], str | None]:
+        """Page through stored records; return a batch and the next cursor."""
+        ...

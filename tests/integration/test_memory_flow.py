@@ -80,6 +80,21 @@ def test_get_and_delete_roundtrip(manager: MemoryManager):
     assert manager.get(record_id) is None
 
 
+def test_expand_parents_returns_broader_context(manager: MemoryManager):
+    filler = " ".join(["padding"] * 200)
+    content = f"ALPHAMARKER is the start. {filler} OMEGAMARKER is the end."
+    manager.write(content=content, agent_id="a", session_id="s", namespace="big")
+
+    narrow = manager.query(query="ALPHAMARKER", namespace="big", token_budget=4096)
+    assert "ALPHAMARKER" in narrow.context
+    assert "OMEGAMARKER" not in narrow.context  # only the matched small chunk
+
+    expanded = manager.query(
+        query="ALPHAMARKER", namespace="big", token_budget=4096, expand_parents=True
+    )
+    assert "OMEGAMARKER" in expanded.context  # parent document hydrated from SQL
+
+
 def test_summarize_session_writes_summary(manager: MemoryManager):
     for i in range(6):
         manager.write(
