@@ -14,6 +14,7 @@ from context_bridge.core.models import AssembledContext, RetrievedChunk, now_ts
 from context_bridge.core.retrieval.budget import assemble
 from context_bridge.core.retrieval.mmr import mmr_select
 from context_bridge.core.retrieval.reranker import Reranker
+from context_bridge.core.tracing import span
 from context_bridge.core.vectorstore.base import VectorStore
 
 ParentLookup = Callable[[list[str]], dict[str, str]]
@@ -54,31 +55,37 @@ class Retriever:
         filters: dict | None = None,
         params: RetrievalParams,
     ) -> AssembledContext:
-        dense = self.embedder.embed_query_dense(query)
-        sparse = self.embedder.embed_query_sparse(query) if self.embedder.supports_sparse else None
+        with span("retrieve.embed"):
+            dense = self.embedder.embed_query_dense(query)
+            sparse = (
+                self.embedder.embed_query_sparse(query) if self.embedder.supports_sparse else None
+            )
 
-        candidates = self.store.hybrid_search(
-            dense=dense,
-            sparse=sparse,
-            limit=max(params.candidate_pool, params.top_k),
-            namespace=namespace,
-            filters=filters,
-        )
+        with span("retrieve.search", candidate_pool=params.candidate_pool):
+            candidates = self.store.hybrid_search(
+                dense=dense,
+                sparse=sparse,
+                limit=max(params.candidate_pool, params.top_k),
+                namespace=namespace,
+                filters=filters,
+            )
         candidates = self._drop_expired(candidates)
         if not candidates:
             return AssembledContext(context="", chunks=[], tokens_used=0)
 
         if params.rerank:
-            candidates = self.reranker.rerank(query, candidates)
+            with span("retrieve.rerank", candidates=len(candidates)):
+                candidates = self.reranker.rerank(query, candidates)
 
-        selected = mmr_select(candidates, lambda_=params.mmr_lambda, top_k=params.top_k)
-        if params.expand_parents and self.parent_lookup is not None:
-            self._hydrate_parents(selected)
-        return assemble(
-            selected,
-            token_budget=params.token_budget,
-            expand_parents=params.expand_parents,
-        )
+        with span("retrieve.assemble", top_k=params.top_k, token_budget=params.token_budget):
+            selected = mmr_select(candidates, lambda_=params.mmr_lambda, top_k=params.top_k)
+            if params.expand_parents and self.parent_lookup is not None:
+                self._hydrate_parents(selected)
+            return assemble(
+                selected,
+                token_budget=params.token_budget,
+                expand_parents=params.expand_parents,
+            )
 
     def _hydrate_parents(self, chunks: list[RetrievedChunk]) -> None:
         assert self.parent_lookup is not None

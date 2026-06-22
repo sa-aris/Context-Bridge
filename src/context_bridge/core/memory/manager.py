@@ -23,6 +23,7 @@ from context_bridge.core.models import (
     now_ts,
 )
 from context_bridge.core.retrieval.retriever import RetrievalParams, Retriever
+from context_bridge.core.tracing import span
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working.base import WorkingMemory
 from context_bridge.db.repository import EpisodeRepository, ParentRepository
@@ -97,12 +98,13 @@ class MemoryManager:
             return WriteResult()
 
         texts = [c.text for c in chunks]
-        dense_vecs = self.embedder.embed_dense(texts)
-        sparse_vecs: list[SparseVector | None]
-        if self.embedder.supports_sparse:
-            sparse_vecs = list(self.embedder.embed_sparse(texts))
-        else:
-            sparse_vecs = [None] * len(texts)
+        with span("memory.embed", chunks=len(texts)):
+            dense_vecs = self.embedder.embed_dense(texts)
+            sparse_vecs: list[SparseVector | None]
+            if self.embedder.supports_sparse:
+                sparse_vecs = list(self.embedder.embed_sparse(texts))
+            else:
+                sparse_vecs = [None] * len(texts)
 
         records: list[MemoryRecord] = []
         deduped = 0
@@ -135,8 +137,9 @@ class MemoryManager:
             )
 
         if records:
-            self.store.upsert(records)
-            self._persist_parents(chunks, records, namespace)
+            with span("memory.upsert", records=len(records)):
+                self.store.upsert(records)
+                self._persist_parents(chunks, records, namespace)
 
         ids = [r.id for r in records]
         self.episodes.record(
@@ -210,7 +213,10 @@ class MemoryManager:
             rerank=rerank,
             expand_parents=expand_parents,
         )
-        result = self.retriever.retrieve(query, namespace=namespace, filters=filters, params=params)
+        with span("memory.query", namespace=namespace, top_k=params.top_k):
+            result = self.retriever.retrieve(
+                query, namespace=namespace, filters=filters, params=params
+            )
         if session_id:
             self.episodes.record(
                 session_id=session_id,

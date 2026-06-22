@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     # Observability
     metrics_enabled: bool = True
+    tracing_enabled: bool = False
+    otel_service_name: str = "context-bridge"
+    otel_exporter_otlp_endpoint: str = ""  # e.g. http://localhost:4317
 
     def api_key_set(self) -> set[str]:
         """Parse the comma-separated ``api_keys`` setting into a set."""

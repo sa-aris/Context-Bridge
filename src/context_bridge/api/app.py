@@ -18,6 +18,7 @@ from context_bridge.api import metrics
 from context_bridge.api.deps import build_container
 from context_bridge.api.routes import health, maintenance, memory, sessions
 from context_bridge.api.security import api_key_guard, build_rate_limiter, rate_limit_guard
+from context_bridge.api.tracing import setup_tracing
 from context_bridge.config import Settings, get_settings
 
 logger = logging.getLogger("context_bridge")
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.rate_limiter = build_rate_limiter(settings)
 
+    setup_tracing(app, settings)
     _install_middleware(app, settings)
     _install_error_handler(app)
 

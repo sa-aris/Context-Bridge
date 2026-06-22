@@ -29,6 +29,11 @@ fastembed = ["fastembed>=0.3"]
 redis = ["redis>=5.0"]
 postgres = ["psycopg[binary]>=3.1"]
 openai = ["openai>=1.30"]
+otel = [
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
 dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
