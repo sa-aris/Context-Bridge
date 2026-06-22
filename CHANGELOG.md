@@ -26,4 +26,4 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Batch write and paginated listing endpoints.
 - Observability: Prometheus metrics at `/metrics`, request-ID propagation and a
   structured global error handler.
-- Packaging: MIT license, multi-stage Dockerfile, GitHub Actions CI, `py.typed`.
+- Packaging: Apache-2.0 license, multi-stage Dockerfile, GitHub Actions CI, `py.typed`.
