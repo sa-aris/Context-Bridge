@@ -12,6 +12,7 @@ from context_bridge.core.embeddings import build_embedder
 from context_bridge.core.embeddings.base import Embedder
 from context_bridge.core.memory.manager import MemoryManager
 from context_bridge.core.memory.policy import WritePolicy
+from context_bridge.core.memory.summarizer import build_summarizer
 from context_bridge.core.retrieval import Retriever, build_reranker
 from context_bridge.core.retrieval.retriever import RetrievalParams
 from context_bridge.core.vectorstore import build_vector_store
@@ -64,6 +65,7 @@ def build_container(settings: Settings) -> Container:
         episodes=episodes,
         policy=policy,
         defaults=defaults,
+        summarizer=build_summarizer(settings),
     )
     return Container(settings=settings, embedder=embedder, store=store, db=db, manager=manager)
 

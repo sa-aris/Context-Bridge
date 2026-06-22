@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     rerank_provider: str = "identity"
     rerank_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
 
+    # Summarizer ("extractive" needs no model; "llm" calls an
+    # OpenAI-compatible chat endpoint and falls back to extractive on error)
+    summarizer_provider: str = "extractive"
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_api_key: str = ""
+    llm_model: str = "qwen2.5"
+    llm_timeout: float = 30.0
+    llm_max_tokens: int = 512
+
     # Structured store
     database_url: str = "sqlite+pysqlite:///./context_bridge.db"
 
