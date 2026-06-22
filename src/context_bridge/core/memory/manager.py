@@ -244,6 +244,10 @@ class MemoryManager:
     def delete(self, record_ids: list[str]) -> None:
         self.store.delete(record_ids)
 
+    def sweep_expired(self) -> int:
+        """Physically remove TTL-expired memories from the semantic store."""
+        return self.store.sweep_expired()
+
     # -- working memory ---------------------------------------------------
     def remember_turn(self, session_id: str, item: dict) -> None:
         self.working.append(session_id, item)

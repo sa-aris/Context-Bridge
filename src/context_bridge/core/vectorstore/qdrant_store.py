@@ -18,6 +18,7 @@ from context_bridge.core.models import (
     Provenance,
     RetrievedChunk,
     SparseVector,
+    now_ts,
 )
 
 DENSE = "dense"
@@ -168,6 +169,29 @@ class QdrantStore:
             collection_name=self.collection,
             points_selector=models.PointIdsList(points=list(record_ids)),
         )
+
+    def sweep_expired(self, *, batch_size: int = 256) -> int:
+        """Scroll the collection and delete every record past its TTL."""
+        now = now_ts()
+        offset: Any = None
+        expired: list[str] = []
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.collection,
+                limit=batch_size,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in points:
+                prov = (point.payload or {}).get("provenance", {})
+                ttl = prov.get("ttl_seconds")
+                if ttl is not None and now - prov.get("created_at", 0.0) > ttl:
+                    expired.append(str(point.id))
+            if offset is None:
+                break
+        self.delete(expired)
+        return len(expired)
 
     # -- helpers ----------------------------------------------------------
     def _hydrate(self, ids: list[str], scores: dict[str, float]) -> list[RetrievedChunk]:

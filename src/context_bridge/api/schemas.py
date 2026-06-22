@@ -104,3 +104,7 @@ class TimelineResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     components: dict[str, str]
+
+
+class SweepResponse(BaseModel):
+    deleted: int

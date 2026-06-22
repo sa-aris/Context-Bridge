@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     chunk_size_tokens: int = 256
     chunk_overlap_tokens: int = 32
 
+    # Maintenance — background TTL sweep (0 disables the periodic job)
+    sweep_interval_seconds: int = 0
+
 
 @lru_cache
 def get_settings() -> Settings:

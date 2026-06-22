@@ -43,3 +43,7 @@ class VectorStore(Protocol):
     def delete(self, record_ids: list[str]) -> None:
         """Remove records by id."""
         ...
+
+    def sweep_expired(self, *, batch_size: int = 256) -> int:
+        """Physically delete records whose TTL has elapsed; return the count."""
+        ...
