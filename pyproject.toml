@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "context-bridge"
+version = "0.1.0"
+description = "Shared neural memory middleware for multi-agent systems."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["rag", "vector-database", "multi-agent", "memory", "qdrant"]
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "qdrant-client>=1.12",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "httpx>=0.27",
+    "tiktoken>=0.7",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+fastembed = ["fastembed>=0.3"]
+redis = ["redis>=5.0"]
+postgres = ["psycopg[binary]>=3.1"]
+openai = ["openai>=1.30"]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+context-bridge = "context_bridge.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/context_bridge"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["context_bridge"]
+mypy_path = "src"
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
