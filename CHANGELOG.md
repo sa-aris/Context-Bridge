@@ -32,3 +32,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - RBAC: per-key namespace globs with read/write permissions (`API_KEY_POLICIES`).
 - Observability extras: Prometheus + Grafana stack, OpenTelemetry tracing.
 - Helm chart and a runnable token-savings benchmark.
+- Right-to-be-forgotten deletion by namespace/session, embedding-dimension
+  guard, bounded input sizes, and credential-safe CORS defaults.
+- Tag-driven release workflow (GitHub Release + PyPI trusted publishing).

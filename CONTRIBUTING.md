@@ -42,6 +42,21 @@ when the model is unavailable.
   `test:`, `chore:`, `refactor:`.
 - **Type everything.** `mypy src` must pass.
 
+## Cutting a release
+
+Releases are tag-driven. Bump `version` in `pyproject.toml`, update
+`CHANGELOG.md`, then:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `Release` workflow builds the sdist/wheel, creates a GitHub Release with
+generated notes, and publishes to PyPI via OIDC **trusted publishing** (configure
+a PyPI publisher for this repository and a `pypi` environment once, no token
+needed).
+
 ## Reporting bugs / requesting features
 
 Open an issue using the provided templates. For security issues, please follow

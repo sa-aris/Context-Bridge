@@ -212,7 +212,8 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/memory/query` | Hybrid recall within a token budget |
 | `POST` | `/v1/memory/query/stream` | Hybrid recall streamed as Server-Sent Events |
 | `GET` | `/v1/memory` | List / paginate records by namespace |
-| `GET` · `DELETE` | `/v1/memory/{id}` | Fetch / remove a record |
+| `GET` · `DELETE` | `/v1/memory/{id}` | Fetch / remove a single record |
+| `DELETE` | `/v1/memory?namespace=&session_id=` | Erase all memory for a namespace/session |
 | `POST` | `/v1/memory/summarize` | Compress a session into a summary memory |
 | `GET` | `/v1/sessions/{id}/timeline` | Episodic / provenance view |
 | `POST` | `/v1/maintenance/sweep` | Delete TTL-expired memories |
