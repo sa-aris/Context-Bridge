@@ -60,10 +60,15 @@ class Settings(BaseSettings):
     qdrant_collection: str = "context_bridge"
 
     # Embeddings
-    embed_provider: str = "hashing"
+    embed_provider: str = "hashing"  # hashing | fastembed | openai | cohere
     embed_dense_model: str = "BAAI/bge-small-en-v1.5"
     embed_sparse_model: str = "Qdrant/bm25"
     embed_dim: int = 384
+
+    # External provider credentials (OpenAI-compatible / Cohere)
+    openai_api_key: str = ""
+    openai_base_url: str = ""
+    cohere_api_key: str = ""
 
     # Reranker
     rerank_provider: str = "identity"

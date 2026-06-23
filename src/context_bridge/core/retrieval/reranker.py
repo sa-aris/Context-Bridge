@@ -52,6 +52,38 @@ class FastEmbedReranker:
         return sorted(chunks, key=lambda c: c.score, reverse=True)
 
 
+class CohereReranker:
+    """Cross-encoder reranking via the Cohere rerank API."""
+
+    def __init__(self, model: str = "rerank-english-v3.0", *, api_key: str = "") -> None:
+        self._model_name = model
+        self.api_key = api_key
+
+    @cached_property
+    def _client(self):  # pragma: no cover - requires cohere + network
+        import cohere
+
+        return cohere.Client(self.api_key or None)
+
+    def rerank(
+        self, query: str, chunks: list[RetrievedChunk]
+    ) -> list[RetrievedChunk]:  # pragma: no cover - network
+        if not chunks:
+            return chunks
+        resp = self._client.rerank(
+            model=self._model_name,
+            query=query,
+            documents=[c.content for c in chunks],
+            top_n=len(chunks),
+        )
+        reordered: list[RetrievedChunk] = []
+        for result in resp.results:
+            chunk = chunks[result.index]
+            chunk.score = float(result.relevance_score)
+            reordered.append(chunk)
+        return reordered
+
+
 def build_reranker(settings: Settings) -> Reranker:
     """Construct the configured reranker."""
     provider = settings.rerank_provider.lower()
@@ -59,4 +91,6 @@ def build_reranker(settings: Settings) -> Reranker:
         return IdentityReranker()
     if provider == "fastembed":
         return FastEmbedReranker(model=settings.rerank_model)
+    if provider == "cohere":
+        return CohereReranker(model=settings.rerank_model, api_key=settings.cohere_api_key)
     raise ValueError(f"Unknown rerank_provider: {settings.rerank_provider!r}")
