@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     # Security (empty api_keys => auth disabled; 0 rate => limiter disabled)
     api_keys: str = ""
     api_key_namespaces: str = ""  # JSON: {"key": ["ns-a", "ns-b"]}; "*" = all
+    # JSON RBAC: {"key": {"namespaces": ["team-a*"], "permissions": ["read"]}}
+    api_key_policies: str = ""
     rate_limit_per_minute: int = 0
     rate_limit_backend: str = "memory"  # "memory" or "redis"
     cors_allow_origins: str = "*"  # comma-separated, or "*"
@@ -50,6 +52,15 @@ class Settings(BaseSettings):
 
         data = json.loads(self.api_key_namespaces)
         return {str(k): list(v) for k, v in data.items()}
+
+    def api_key_policies_map(self) -> dict[str, dict]:
+        """Parse the per-key RBAC policy map (namespaces + permissions)."""
+        if not self.api_key_policies.strip():
+            return {}
+        import json
+
+        data = json.loads(self.api_key_policies)
+        return {str(k): dict(v) for k, v in data.items()}
 
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]

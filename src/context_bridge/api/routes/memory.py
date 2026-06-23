@@ -22,7 +22,7 @@ from context_bridge.api.schemas import (
     WriteRequest,
     WriteResponse,
 )
-from context_bridge.api.security import authorize_namespace
+from context_bridge.api.security import authorize
 from context_bridge.core.memory.manager import MemoryManager
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -55,7 +55,7 @@ def _do_write(manager: MemoryManager, req: WriteRequest) -> WriteResponse:
 def write_memory(
     req: WriteRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> WriteResponse:
-    authorize_namespace(request, req.namespace)
+    authorize(request, req.namespace, "write")
     return _do_write(manager, req)
 
 
@@ -64,7 +64,7 @@ def write_memory_batch(
     req: WriteBatchRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> WriteBatchResponse:
     for item in req.items:
-        authorize_namespace(request, item.namespace)
+        authorize(request, item.namespace, "write")
     return WriteBatchResponse(results=[_do_write(manager, item) for item in req.items])
 
 
@@ -72,7 +72,7 @@ def write_memory_batch(
 def query_memory(
     req: QueryRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> QueryResponse:
-    authorize_namespace(request, req.namespace)
+    authorize(request, req.namespace, "read")
     assembled = manager.query(
         query=req.query,
         namespace=req.namespace,
@@ -103,7 +103,7 @@ def query_memory_stream(
     Lets an agent render or forward context progressively instead of waiting
     for the whole assembled block.
     """
-    authorize_namespace(request, req.namespace)
+    authorize(request, req.namespace, "read")
     assembled = manager.query(
         query=req.query,
         namespace=req.namespace,
@@ -151,7 +151,7 @@ def list_memory(
     cursor: str | None = Query(default=None),
     manager: MemoryManager = Depends(get_manager),
 ) -> ListResponse:
-    authorize_namespace(request, namespace)
+    authorize(request, namespace, "read")
     chunks, next_cursor = manager.list_records(namespace=namespace, limit=limit, cursor=cursor)
     return ListResponse(chunks=[ChunkOut.from_chunk(c) for c in chunks], next_cursor=next_cursor)
 
@@ -173,7 +173,7 @@ def delete_memory(record_id: str, manager: MemoryManager = Depends(get_manager))
 def summarize_session(
     req: SummarizeRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> SummarizeResponse:
-    authorize_namespace(request, req.namespace)
+    authorize(request, req.namespace, "write")
     result = manager.summarize_session(
         session_id=req.session_id,
         namespace=req.namespace,

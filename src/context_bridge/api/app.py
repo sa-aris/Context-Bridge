@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from context_bridge.api import metrics
+from context_bridge.api.access import AccessControl
 from context_bridge.api.deps import build_container
 from context_bridge.api.routes import health, maintenance, memory, sessions
 from context_bridge.api.security import api_key_guard, build_rate_limiter, rate_limit_guard
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.rate_limiter = build_rate_limiter(settings)
+    app.state.access = AccessControl.build(settings)
 
     setup_tracing(app, settings)
     _install_middleware(app, settings)

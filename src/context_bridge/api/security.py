@@ -18,7 +18,6 @@ from fastapi import HTTPException, Request, status
 
 _API_KEY_HEADER = "x-api-key"
 _WINDOW_SECONDS = 60
-_ALL = "*"
 
 
 # --------------------------------------------------------------------------- #
@@ -98,13 +97,13 @@ def _matches_any(provided: str, keys: set[str]) -> bool:
 async def api_key_guard(request: Request) -> None:
     """Reject requests lacking a valid API key, when keys are configured.
 
-    On success, stashes the caller's allowed namespaces on ``request.state``
-    for later per-request authorization.
+    On success, stashes the caller's key on ``request.state`` so the RBAC layer
+    can resolve its namespace/operation rules.
     """
     settings = request.app.state.settings
     keys = settings.api_key_set()
     if not keys:
-        request.state.allowed_namespaces = [_ALL]
+        request.state.api_key = None
         return
 
     provided = request.headers.get(_API_KEY_HEADER)
@@ -112,9 +111,7 @@ async def api_key_guard(request: Request) -> None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid or missing API key"
         )
-
-    scopes = settings.api_key_namespace_map()
-    request.state.allowed_namespaces = scopes.get(provided, [_ALL])
+    request.state.api_key = provided
 
 
 async def rate_limit_guard(request: Request) -> None:
@@ -128,12 +125,13 @@ async def rate_limit_guard(request: Request) -> None:
         )
 
 
-def authorize_namespace(request: Request, namespace: str) -> None:
-    """Ensure the authenticated caller may access ``namespace``."""
-    allowed = getattr(request.state, "allowed_namespaces", [_ALL])
-    if _ALL in allowed or namespace in allowed:
+def authorize(request: Request, namespace: str, operation: str) -> None:
+    """Ensure the authenticated caller may ``operation`` on ``namespace``."""
+    access = request.app.state.access
+    key = getattr(request.state, "api_key", None)
+    if access.allows(key, namespace, operation):
         return
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"namespace '{namespace}' is not permitted for this API key",
+        detail=f"'{operation}' on namespace '{namespace}' is not permitted for this API key",
     )
