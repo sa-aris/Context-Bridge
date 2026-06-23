@@ -45,6 +45,20 @@ def test_health_is_open_without_key(tmp_path):
         assert client.get("/health").status_code == 200
 
 
+def test_cors_wildcard_disables_credentials(tmp_path):
+    app = create_app(_settings(tmp_path, cors_allow_origins="*"))
+    with TestClient(app) as client:
+        resp = client.get("/health", headers={"Origin": "http://evil.example"})
+        assert resp.headers.get("access-control-allow-credentials") is None
+
+
+def test_cors_explicit_origin_allows_credentials(tmp_path):
+    app = create_app(_settings(tmp_path, cors_allow_origins="http://app.example"))
+    with TestClient(app) as client:
+        resp = client.get("/health", headers={"Origin": "http://app.example"})
+        assert resp.headers.get("access-control-allow-credentials") == "true"
+
+
 def test_rate_limit_blocks_excess_requests(tmp_path):
     app = create_app(_settings(tmp_path, rate_limit_per_minute=2))
     with TestClient(app) as client:

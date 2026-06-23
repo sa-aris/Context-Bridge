@@ -276,6 +276,19 @@ class MemoryManager:
         """Page through stored memories, optionally filtered by namespace."""
         return self.store.list_records(namespace=namespace, limit=limit, cursor=cursor)
 
+    def forget(self, *, namespace: str | None = None, session_id: str | None = None) -> dict:
+        """Erase all memory for a namespace and/or session (right-to-be-forgotten)."""
+        if not namespace and not session_id:
+            raise ValueError("forget requires a namespace and/or session_id")
+        vectors = self.store.delete_by(namespace=namespace, session_id=session_id)
+        episodes = self.episodes.delete_by(namespace=namespace, session_id=session_id)
+        parents = self.parents.delete_by_namespace(namespace) if namespace else 0
+        return {
+            "vectors_deleted": vectors,
+            "episodes_deleted": episodes,
+            "parents_deleted": parents,
+        }
+
     # -- working memory ---------------------------------------------------
     def remember_turn(self, session_id: str, item: dict) -> None:
         self.working.append(session_id, item)

@@ -71,6 +71,7 @@ class QdrantStore:
     # -- schema -----------------------------------------------------------
     def ensure_collection(self) -> None:
         if self.client.collection_exists(self.collection):
+            self._verify_dim()
             return
         sparse_config = (
             {SPARSE: models.SparseVectorParams(index=models.SparseIndexParams())}
@@ -84,6 +85,22 @@ class QdrantStore:
             },
             sparse_vectors_config=sparse_config,
         )
+
+    def _verify_dim(self) -> None:
+        """Fail loudly if an existing collection's dimension won't fit the embedder."""
+        vectors = self.client.get_collection(self.collection).config.params.vectors
+        existing = None
+        if isinstance(vectors, dict):
+            params = vectors.get(DENSE)
+            existing = getattr(params, "size", None)
+        else:
+            existing = getattr(vectors, "size", None)
+        if existing is not None and existing != self.dim:
+            raise ValueError(
+                f"collection '{self.collection}' has dense dimension {existing}, but the "
+                f"configured embedder produces {self.dim}. Point QDRANT_COLLECTION at a new "
+                f"name or recreate the collection after changing the embedding model."
+            )
 
     # -- writes -----------------------------------------------------------
     def upsert(self, records: list[MemoryRecord]) -> None:
@@ -165,6 +182,26 @@ class QdrantStore:
             collection_name=self.collection,
             points_selector=models.PointIdsList(points=list(record_ids)),
         )
+
+    def delete_by(self, *, namespace: str | None = None, session_id: str | None = None) -> int:
+        """Delete all points matching a namespace and/or session; return the count."""
+        must: list[Any] = []
+        if namespace:
+            must.append(
+                models.FieldCondition(key="namespace", match=models.MatchValue(value=namespace))
+            )
+        if session_id:
+            must.append(
+                models.FieldCondition(
+                    key="provenance.session_id", match=models.MatchValue(value=session_id)
+                )
+            )
+        if not must:
+            raise ValueError("delete_by requires a namespace and/or session_id")
+        flt = models.Filter(must=must)
+        count = self.client.count(self.collection, count_filter=flt, exact=True).count
+        self.client.delete(self.collection, points_selector=models.FilterSelector(filter=flt))
+        return count
 
     def sweep_expired(self, *, batch_size: int = 256) -> int:
         """Scroll the collection and delete every record past its TTL."""

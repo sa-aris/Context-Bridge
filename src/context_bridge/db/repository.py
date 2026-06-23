@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from context_bridge.core.models import new_id
 from context_bridge.db.models import Episode, ParentDocument
@@ -56,6 +56,16 @@ class EpisodeRepository:
         with self.db.session() as session:
             return [e.as_dict() for e in session.scalars(stmt)]
 
+    def delete_by(self, *, namespace: str | None = None, session_id: str | None = None) -> int:
+        """Delete episodes matching a namespace and/or session; return the count."""
+        stmt = delete(Episode)
+        if namespace:
+            stmt = stmt.where(Episode.namespace == namespace)
+        if session_id:
+            stmt = stmt.where(Episode.session_id == session_id)
+        with self.db.session() as session:
+            return session.execute(stmt).rowcount or 0  # type: ignore[attr-defined]
+
 
 class ParentRepository:
     """Stores and retrieves parent documents for the small-to-big strategy."""
@@ -78,3 +88,12 @@ class ParentRepository:
         stmt = select(ParentDocument).where(ParentDocument.id.in_(set(parent_ids)))
         with self.db.session() as session:
             return {p.id: p.text for p in session.scalars(stmt)}
+
+    def delete_by_namespace(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return (
+                session.execute(  # type: ignore[attr-defined]
+                    delete(ParentDocument).where(ParentDocument.namespace == namespace)
+                ).rowcount
+                or 0
+            )

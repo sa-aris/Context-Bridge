@@ -12,6 +12,7 @@ from context_bridge.api import metrics
 from context_bridge.api.deps import get_manager
 from context_bridge.api.schemas import (
     ChunkOut,
+    ForgetResponse,
     ListResponse,
     QueryRequest,
     QueryResponse,
@@ -154,6 +155,23 @@ def list_memory(
     authorize(request, namespace, "read")
     chunks, next_cursor = manager.list_records(namespace=namespace, limit=limit, cursor=cursor)
     return ListResponse(chunks=[ChunkOut.from_chunk(c) for c in chunks], next_cursor=next_cursor)
+
+
+@router.delete("", response_model=ForgetResponse)
+def forget_memory(
+    request: Request,
+    namespace: str | None = Query(default=None),
+    session_id: str | None = Query(default=None),
+    manager: MemoryManager = Depends(get_manager),
+) -> ForgetResponse:
+    """Erase all memory for a namespace and/or session (right-to-be-forgotten)."""
+    if not namespace and not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="provide a namespace and/or session_id",
+        )
+    authorize(request, namespace or "*", "write")
+    return ForgetResponse(**manager.forget(namespace=namespace, session_id=session_id))
 
 
 @router.get("/{record_id}", response_model=ChunkOut)

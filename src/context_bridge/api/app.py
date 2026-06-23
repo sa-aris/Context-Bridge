@@ -88,10 +88,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def _install_middleware(app: FastAPI, settings: Settings) -> None:
+    origins = settings.cors_origin_list()
+    # Browsers reject (and it is unsafe to send) credentials with a "*" origin,
+    # so only enable credentialed CORS when explicit origins are configured.
+    allow_all = origins == ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origin_list(),
-        allow_credentials=True,
+        allow_origins=origins,
+        allow_credentials=not allow_all,
         allow_methods=["*"],
         allow_headers=["*"],
     )

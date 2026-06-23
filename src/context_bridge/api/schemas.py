@@ -6,9 +6,14 @@ from pydantic import BaseModel, Field
 
 from context_bridge.core.models import AssembledContext, RetrievedChunk
 
+# Hard caps to bound memory use / abuse. A single memory should be one document;
+# split larger inputs client-side.
+MAX_CONTENT_CHARS = 1_000_000
+MAX_QUERY_CHARS = 16_000
+
 
 class WriteRequest(BaseModel):
-    content: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1, max_length=MAX_CONTENT_CHARS)
     agent_id: str
     session_id: str
     task_id: str | None = None
@@ -38,7 +43,7 @@ class WriteBatchResponse(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    query: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1, max_length=MAX_QUERY_CHARS)
     namespace: str = "default"
     agent_id: str = "system"
     session_id: str | None = None
@@ -121,3 +126,9 @@ class ListResponse(BaseModel):
 
 class SweepResponse(BaseModel):
     deleted: int
+
+
+class ForgetResponse(BaseModel):
+    vectors_deleted: int
+    episodes_deleted: int
+    parents_deleted: int

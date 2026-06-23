@@ -48,6 +48,10 @@ class VectorStore(Protocol):
         """Physically delete records whose TTL has elapsed; return the count."""
         ...
 
+    def delete_by(self, *, namespace: str | None = None, session_id: str | None = None) -> int:
+        """Delete records matching a namespace and/or session; return the count."""
+        ...
+
     def list_records(
         self, *, namespace: str | None, limit: int, cursor: str | None
     ) -> tuple[list[RetrievedChunk], str | None]:
