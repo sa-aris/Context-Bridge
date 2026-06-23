@@ -118,8 +118,10 @@ vendor lock-in.
 | 🛡️ **Write governance** | Dedup, confidence gating, summarize-before-store |
 | 🧾 **Provenance** | Every memory is attributable; full session timeline |
 | ⏳ **TTL & decay** | Expiry at query time + background/endpoint sweep |
-| 🏢 **Multi-tenant** | API keys scoped to namespaces |
+| 🏢 **Multi-tenant RBAC** | API keys scoped to namespace globs + read/write permissions |
 | 🔑 **Auth & rate limit** | Constant-time keys; in-memory or Redis limiter |
+| 🔌 **Embedder choice** | Local (FastEmbed), OpenAI, Cohere — all behind one protocol |
+| 📡 **Streaming recall** | Server-Sent Events: render context progressively |
 | 📊 **Observability** | Prometheus metrics, request IDs, structured errors |
 | 🐳 **Production-ready** | Dockerfile, CI, Alembic migrations, typed SDK |
 | 🔌 **Pluggable** | Swap Qdrant/embedder/reranker behind protocols |
@@ -208,6 +210,7 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/memory/write` | Chunk, embed, govern and store content |
 | `POST` | `/v1/memory/write_batch` | Write many memories in one request |
 | `POST` | `/v1/memory/query` | Hybrid recall within a token budget |
+| `POST` | `/v1/memory/query/stream` | Hybrid recall streamed as Server-Sent Events |
 | `GET` | `/v1/memory` | List / paginate records by namespace |
 | `GET` · `DELETE` | `/v1/memory/{id}` | Fetch / remove a record |
 | `POST` | `/v1/memory/summarize` | Compress a session into a summary memory |
@@ -222,14 +225,14 @@ Interactive OpenAPI docs are served at `/docs`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `QDRANT_URL` | `:memory:` | Qdrant location or `:memory:` |
-| `EMBED_PROVIDER` | `hashing` | `hashing` (offline) or `fastembed` |
-| `RERANK_PROVIDER` | `identity` | `identity` or `fastembed` |
+| `EMBED_PROVIDER` | `hashing` | `hashing` · `fastembed` · `openai` · `cohere` |
+| `RERANK_PROVIDER` | `identity` | `identity` · `fastembed` · `cohere` |
 | `DATABASE_URL` | `sqlite+pysqlite:///./context_bridge.db` | Episodic store |
 | `WORKING_PROVIDER` | `memory` | `memory` or `redis` |
 | `SUMMARIZER_PROVIDER` | `extractive` | `extractive` or `llm` |
 | `DEFAULT_TOKEN_BUDGET` | `2048` | Default recall token budget |
 | `API_KEYS` | _(empty)_ | Comma-separated keys; empty = open |
-| `API_KEY_NAMESPACES` | _(empty)_ | JSON map of key → allowed namespaces |
+| `API_KEY_POLICIES` | _(empty)_ | JSON RBAC: key → namespace globs + read/write |
 | `RATE_LIMIT_PER_MINUTE` | `0` | Per-identity limit; `0` = disabled |
 | `SWEEP_INTERVAL_SECONDS` | `0` | Background TTL sweep; `0` = disabled |
 
@@ -315,9 +318,9 @@ skip automatically when offline.
 
 ## Roadmap
 
-- First-class OpenAI / Cohere embedder & reranker extras
-- Streaming recall (SSE) for incremental context assembly
-- Pluggable cross-namespace access policies / RBAC
+- Hybrid sparse vectors for OpenAI/Cohere providers (SPLADE side-car)
+- gRPC API surface alongside REST
+- Per-tenant usage accounting & quotas
 - Managed cloud offering
 
 ## License

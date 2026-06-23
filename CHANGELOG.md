@@ -27,3 +27,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Observability: Prometheus metrics at `/metrics`, request-ID propagation and a
   structured global error handler.
 - Packaging: Apache-2.0 license, multi-stage Dockerfile, GitHub Actions CI, `py.typed`.
+- External providers: OpenAI / Cohere embedders and the Cohere reranker.
+- Streaming recall via Server-Sent Events (`/v1/memory/query/stream`).
+- RBAC: per-key namespace globs with read/write permissions (`API_KEY_POLICIES`).
+- Observability extras: Prometheus + Grafana stack, OpenTelemetry tracing.
+- Helm chart and a runnable token-savings benchmark.
