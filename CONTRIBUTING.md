@@ -52,10 +52,15 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The `Release` workflow builds the sdist/wheel, creates a GitHub Release with
-generated notes, and publishes to PyPI via OIDC **trusted publishing** (configure
-a PyPI publisher for this repository and a `pypi` environment once, no token
-needed).
+The `Release` workflow builds the sdist/wheel and creates a GitHub Release with
+generated notes. To also publish to PyPI, do the one-time setup:
+
+1. On PyPI, add a **trusted publisher** for this repo (workflow `release.yml`,
+   environment `pypi`) — no token needed.
+2. Create a GitHub Actions **environment** named `pypi`.
+3. Set the repository **variable** `PYPI_ENABLED=true`.
+
+Until then the PyPI job is skipped, so tagging still cuts a clean GitHub Release.
 
 ## Reporting bugs / requesting features
 

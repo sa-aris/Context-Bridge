@@ -47,7 +47,9 @@ jobs:
   pypi-publish:
     needs: build
     runs-on: ubuntu-latest
-    # Trusted publishing: configure a PyPI publisher for this repo + environment.
+    # Enable by setting the repo variable PYPI_ENABLED=true once a PyPI trusted
+    # publisher is configured for this repo + the 'pypi' environment.
+    if: ${{ vars.PYPI_ENABLED == 'true' }}
     environment: pypi
     permissions:
       id-token: write

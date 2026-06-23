@@ -7,12 +7,28 @@
 *Stop passing giant transcripts between agents. Give them a shared memory and let each one recall only what it needs.*
 
 [![CI](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/context-bridge.svg)](https://pypi.org/project/context-bridge/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 [![Typed](https://img.shields.io/badge/typed-mypy-blue.svg)](http://mypy-lang.org/)
 
 </div>
+
+---
+
+**Contents** ·
+[Problem](#the-problem) ·
+[Compare](#how-it-compares) ·
+[Architecture](#architecture) ·
+[Features](#features) ·
+[Install](#install) ·
+[Demo](#demo) ·
+[API](#api) ·
+[Config](#configuration) ·
+[Benchmark](#proof-token-savings-benchmark) ·
+[Deploy](#deployment) ·
+[Roadmap](#roadmap)
 
 ---
 
@@ -47,6 +63,20 @@ just the slice they need for the current task — under a strict token budget.
   optional summarize-before-store stop the pool from poisoning itself.
 - **Token budgets are explicit.** Every recall is bounded and reports exactly
   what it spent — the measurable cost-savings lever.
+
+## How it compares
+
+| | Transcript passing<br/>(AutoGen-style) | Per-agent memory<br/>(mem0 / Letta) | **Context Bridge** |
+| --- | :---: | :---: | :---: |
+| Memory scope | none — re-sent each hop | private per agent | **shared across agents** |
+| Token cost | grows ~quadratically | linear-ish | **bounded by budget** |
+| Retrieval | — | dense only | **hybrid + rerank + MMR** |
+| Provenance | — | partial | **full (agent / task / session)** |
+| Write governance | — | varies | **dedup + confidence + TTL** |
+| Multi-tenant | — | — | **namespace RBAC** |
+
+Context Bridge is not another agent framework — it's the **memory layer** any
+framework can point at.
 
 ## Architecture
 
@@ -126,17 +156,27 @@ vendor lock-in.
 | 🐳 **Production-ready** | Dockerfile, CI, Alembic migrations, typed SDK |
 | 🔌 **Pluggable** | Swap Qdrant/embedder/reranker behind protocols |
 
+## Install
+
+```bash
+pip install context-bridge                      # core
+pip install "context-bridge[fastembed,redis,postgres]"   # full local stack
+```
+
+From source (for development):
+
+```bash
+git clone https://github.com/sa-aris/Context-Bridge && cd Context-Bridge
+uv pip install -e ".[dev]"
+```
+
 ## Quick start
 
 ```bash
 # 1. (optional) backing services — Qdrant + Postgres + Redis
 docker compose up -d
 
-# 2. install
-uv pip install -e ".[dev]"            # core + tooling
-# uv pip install -e ".[fastembed,redis,postgres]"   # full local stack
-
-# 3. run
+# 2. run the API
 make run                              # ->  http://localhost:8000/docs
 ```
 
