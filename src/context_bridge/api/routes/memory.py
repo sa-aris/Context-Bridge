@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 
 from context_bridge.api import metrics
 from context_bridge.api.deps import get_manager
@@ -84,6 +88,59 @@ def query_memory(
     metrics.QUERY_TOKENS.observe(assembled.tokens_used)
     metrics.QUERY_CHUNKS.observe(len(assembled.chunks))
     return QueryResponse.from_assembled(assembled)
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@router.post("/query/stream")
+def query_memory_stream(
+    req: QueryRequest, request: Request, manager: MemoryManager = Depends(get_manager)
+) -> StreamingResponse:
+    """Recall as a Server-Sent Events stream: one event per chunk, then 'done'.
+
+    Lets an agent render or forward context progressively instead of waiting
+    for the whole assembled block.
+    """
+    authorize_namespace(request, req.namespace)
+    assembled = manager.query(
+        query=req.query,
+        namespace=req.namespace,
+        agent_id=req.agent_id,
+        session_id=req.session_id,
+        top_k=req.top_k,
+        token_budget=req.token_budget,
+        filters=req.filters,
+        rerank=req.rerank,
+        expand_parents=req.expand_parents,
+    )
+    metrics.QUERIES.inc()
+    metrics.QUERY_TOKENS.observe(assembled.tokens_used)
+    metrics.QUERY_CHUNKS.observe(len(assembled.chunks))
+
+    def generate() -> Iterator[str]:
+        for chunk in assembled.chunks:
+            yield _sse(
+                "chunk",
+                {
+                    "id": chunk.id,
+                    "content": chunk.content,
+                    "score": chunk.score,
+                    "agent_id": chunk.provenance.agent_id,
+                    "source": chunk.provenance.source,
+                },
+            )
+        yield _sse(
+            "done",
+            {
+                "tokens_used": assembled.tokens_used,
+                "num_chunks": len(assembled.chunks),
+                "sources": assembled.sources,
+            },
+        )
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("", response_model=ListResponse)
