@@ -17,6 +17,7 @@ from context_bridge.core.memory.consolidation import cluster_by_similarity
 from context_bridge.core.memory.contradiction import ContradictionDetector, NullDetector
 from context_bridge.core.memory.policy import WritePolicy, cosine
 from context_bridge.core.memory.redaction import NullRedactor, Redactor
+from context_bridge.core.memory.salience import SalienceScorer
 from context_bridge.core.memory.summarizer import ExtractiveSummarizer, Summarizer
 from context_bridge.core.models import (
     AssembledContext,
@@ -385,6 +386,38 @@ class MemoryManager:
             insights += result.stored
         return {"scanned": len(chunks), "clusters": used_clusters, "insights": insights}
 
+    def distill_session(
+        self,
+        *,
+        session_id: str,
+        namespace: str = "default",
+        agent_id: str = "distiller",
+        max_promote: int = 5,
+        min_score: float = 1.0,
+    ) -> dict:
+        """Promote the most salient working-memory turns into durable memory.
+
+        This is how a conversation's *dwelled-upon* points survive into future
+        sessions: ephemeral turns are scored for salience and only the important
+        ones are committed to long-term, cross-session memory.
+        """
+        turns = self.working.recent(session_id, limit=500)
+        texts = [t.get("content", "") for t in turns if isinstance(t, dict)]
+        salient = SalienceScorer(min_score=min_score).distill(texts, max_promote=max_promote)
+        promoted: list[str] = []
+        for item in salient:
+            result = self.write(
+                content=item.text,
+                agent_id=agent_id,
+                session_id=session_id,
+                namespace=namespace,
+                source="distilled",
+                tags=["salient"],
+                dedup=True,
+            )
+            promoted.extend(result.ids)
+        return {"scanned": len(texts), "promoted": len(promoted), "ids": promoted}
+
     def graph_neighbors(self, *, namespace: str, entity: str, hops: int = 1) -> list[dict]:
         if self.cog.graph is None:
             return []
@@ -413,6 +446,9 @@ class MemoryManager:
         filters: dict | None = None,
         rerank: bool = True,
         expand_parents: bool = False,
+        include_dates: bool = False,
+        since: float | None = None,
+        until: float | None = None,
     ) -> AssembledContext:
         params = RetrievalParams(
             top_k=top_k or self.defaults.top_k,
@@ -421,6 +457,9 @@ class MemoryManager:
             mmr_lambda=self.defaults.mmr_lambda,
             rerank=rerank,
             expand_parents=expand_parents,
+            include_dates=include_dates,
+            since=since,
+            until=until,
         )
         with span("memory.query", namespace=namespace, top_k=params.top_k):
             result = self.retriever.retrieve(

@@ -31,6 +31,9 @@ class RetrievalParams:
     mmr_lambda: float = 0.6
     rerank: bool = True
     expand_parents: bool = False
+    include_dates: bool = False
+    since: float | None = None
+    until: float | None = None
 
 
 class Retriever:
@@ -75,6 +78,7 @@ class Retriever:
                 filters=filters,
             )
         candidates = self._drop_expired(candidates)
+        candidates = self._filter_temporal(candidates, params.since, params.until)
         if not candidates:
             return AssembledContext(context="", chunks=[], tokens_used=0)
 
@@ -93,6 +97,7 @@ class Retriever:
                 selected,
                 token_budget=params.token_budget,
                 expand_parents=params.expand_parents,
+                include_dates=params.include_dates,
             )
 
     def _apply_feedback(self, chunks: list[RetrievedChunk]) -> None:
@@ -119,3 +124,19 @@ class Retriever:
     def _drop_expired(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
         at = now_ts()
         return [c for c in chunks if not c.provenance.is_expired(at=at)]
+
+    @staticmethod
+    def _filter_temporal(
+        chunks: list[RetrievedChunk], since: float | None, until: float | None
+    ) -> list[RetrievedChunk]:
+        if since is None and until is None:
+            return chunks
+        out = []
+        for c in chunks:
+            ts = c.provenance.created_at
+            if since is not None and ts < since:
+                continue
+            if until is not None and ts > until:
+                continue
+            out.append(c)
+        return out

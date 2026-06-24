@@ -8,10 +8,19 @@ reports exactly how many tokens were spent.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from context_bridge.core.models import AssembledContext, RetrievedChunk
 from context_bridge.tokenizer import count_tokens, truncate_to_tokens
 
 _MIN_TAIL_TOKENS = 32
+
+
+def _date_prefix(chunk: RetrievedChunk) -> str:
+    ts = chunk.provenance.created_at
+    if not ts:
+        return ""
+    return f"[{datetime.fromtimestamp(ts, tz=UTC).date().isoformat()}] "
 
 
 def assemble(
@@ -19,12 +28,15 @@ def assemble(
     *,
     token_budget: int,
     expand_parents: bool = False,
+    include_dates: bool = False,
     separator: str = "\n\n---\n\n",
 ) -> AssembledContext:
     """Pack ``chunks`` into a context string within ``token_budget`` tokens.
 
     Chunks are consumed in the order given (already ranked). The final chunk may
     be truncated to fill the remaining budget when there is meaningful room left.
+    When ``include_dates`` is set, each chunk is prefixed with its memory date so
+    the agent reads *when* something was recorded.
     """
     included: list[RetrievedChunk] = []
     parts: list[str] = []
@@ -36,6 +48,8 @@ def assemble(
         text = text.strip()
         if not text:
             continue
+        if include_dates:
+            text = _date_prefix(chunk) + text
         cost = count_tokens(text) + (sep_tokens if parts else 0)
         if used + cost <= token_budget:
             parts.append(text)

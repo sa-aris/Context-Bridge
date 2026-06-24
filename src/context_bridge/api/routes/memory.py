@@ -85,6 +85,9 @@ def query_memory(
         filters=req.filters,
         rerank=req.rerank,
         expand_parents=req.expand_parents,
+        include_dates=req.include_dates,
+        since=req.since,
+        until=req.until,
     )
     metrics.QUERIES.inc()
     metrics.QUERY_TOKENS.observe(assembled.tokens_used)

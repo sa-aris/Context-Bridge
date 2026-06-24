@@ -177,6 +177,8 @@ The pool doesn't just remember — the *team* gets better over time:
 | 🏅 **Agent reputation** | Per-namespace profiles learn who is reliable at what (`GET /v1/agents`) |
 | 🎯 **Outcome credit** | A task's success/failure propagates to the memories and agents behind it (`POST /v1/outcomes`) |
 | 📒 **Procedural memory** | Reusable playbooks with success tracking, so solved problems aren't re-solved (`/v1/procedures`) |
+| 🧷 **Salient distillation** | Stream cheap turns; the system keeps only what was *dwelled upon* and carries it into future chats (`/v1/sessions/{id}/distill`) |
+| 📅 **Temporal recall** | Memories carry dates; recall with `include_dates` and `since`/`until` — remembers *when*, human-like |
 
 ## Install
 
@@ -286,6 +288,8 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/memory/summarize` | Compress a session into a summary memory |
 | `POST` | `/v1/memory/feedback` | Signal whether a recalled memory was useful |
 | `GET` | `/v1/sessions/{id}/timeline` | Episodic / provenance view |
+| `POST` · `GET` | `/v1/sessions/{id}/turns` | Append / read ephemeral conversational turns |
+| `POST` | `/v1/sessions/{id}/distill` | Promote salient turns into durable cross-session memory |
 | `POST` | `/v1/maintenance/sweep` | Delete TTL-expired memories |
 | `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
 | `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |

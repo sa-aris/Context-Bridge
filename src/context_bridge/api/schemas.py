@@ -52,6 +52,9 @@ class QueryRequest(BaseModel):
     filters: dict | None = None
     rerank: bool = True
     expand_parents: bool = False
+    include_dates: bool = False
+    since: float | None = None  # epoch seconds; only recall memories at/after this
+    until: float | None = None  # epoch seconds; only recall memories at/before this
 
 
 class ChunkOut(BaseModel):
@@ -112,6 +115,30 @@ class SummarizeResponse(BaseModel):
 class TimelineResponse(BaseModel):
     session_id: str
     episodes: list[dict]
+
+
+class TurnRequest(BaseModel):
+    agent_id: str
+    content: str = Field(..., min_length=1, max_length=MAX_CONTENT_CHARS)
+    kind: str = "note"
+
+
+class TurnsResponse(BaseModel):
+    session_id: str
+    turns: list[dict]
+
+
+class DistillRequest(BaseModel):
+    namespace: str = "default"
+    agent_id: str = "distiller"
+    max_promote: int = Field(default=5, ge=1, le=50)
+    min_score: float = Field(default=1.0, ge=0)
+
+
+class DistillResponse(BaseModel):
+    scanned: int
+    promoted: int
+    ids: list[str]
 
 
 class HealthResponse(BaseModel):

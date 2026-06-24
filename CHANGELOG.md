@@ -40,3 +40,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   outcome-feedback re-ranking, and PII/secret redaction on write.
 - Collective learning: per-namespace agent reputation profiles, task-outcome
   credit propagation, and procedural memory (playbooks with success tracking).
+- Salient distillation: score ephemeral conversational turns and promote only
+  the dwelled-upon ones into durable, cross-session memory
+  (`/v1/sessions/{id}/turns` + `/distill`).
+- Temporal recall: date-aware context (`include_dates`) and `since`/`until`
+  time-window filters on query.
