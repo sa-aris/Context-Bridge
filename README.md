@@ -180,8 +180,12 @@ uv pip install -e ".[dev]"
 docker compose up -d
 
 # 2. run the API
-make run                              # ->  http://localhost:8000/docs
+context-bridge          # if installed from PyPI   ->  http://localhost:8000
+make run                # from source (auto-reload) ->  http://localhost:8000/docs
 ```
+
+Open <http://localhost:8000> for the service banner, or `/docs` for interactive
+API docs.
 
 Out of the box the defaults are **dependency-light and fully offline**: an
 in-process Qdrant (`QDRANT_URL=:memory:`), a deterministic hashing embedder and

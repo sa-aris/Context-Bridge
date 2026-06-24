@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 
+def test_root_banner(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["name"] == "Context Bridge"
+    assert body["version"]
+    assert body["docs"] == "/docs"
+
+
 def test_health_endpoint(client):
     resp = client.get("/health")
     assert resp.status_code == 200

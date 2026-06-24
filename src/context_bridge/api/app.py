@@ -14,6 +14,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from context_bridge import __version__
 from context_bridge.api import metrics
 from context_bridge.api.access import AccessControl
 from context_bridge.api.deps import build_container
@@ -65,7 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(
         title="Context Bridge",
-        version="0.1.0",
+        version=__version__,
         summary="Shared neural memory middleware for multi-agent systems.",
         lifespan=lifespan,
     )
@@ -76,6 +77,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     setup_tracing(app, settings)
     _install_middleware(app, settings)
     _install_error_handler(app)
+
+    @app.get("/", tags=["meta"])
+    def root() -> dict:
+        """Service banner with links to docs, health and metrics."""
+        return {
+            "name": "Context Bridge",
+            "description": "Shared neural memory middleware for multi-agent systems.",
+            "version": __version__,
+            "docs": "/docs",
+            "health": "/health",
+            "metrics": "/metrics" if settings.metrics_enabled else None,
+            "api": API_V1,
+        }
 
     guarded = [Depends(api_key_guard), Depends(rate_limit_guard)]
     app.include_router(health.router)
