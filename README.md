@@ -7,7 +7,7 @@
 *Stop passing giant transcripts between agents. Give them a shared memory and let each one recall only what it needs.*
 
 [![CI](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/context-bridge.svg)](https://pypi.org/project/context-bridge/)
+[![PyPI](https://img.shields.io/pypi/v/context-bridge-memory.svg)](https://pypi.org/project/context-bridge-memory/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
@@ -159,9 +159,12 @@ vendor lock-in.
 ## Install
 
 ```bash
-pip install context-bridge                      # core
-pip install "context-bridge[fastembed,redis,postgres]"   # full local stack
+pip install context-bridge-memory                      # core
+pip install "context-bridge-memory[fastembed,redis,postgres]"   # full local stack
 ```
+
+> The distribution is published as **`context-bridge-memory`**; the import
+> package stays `context_bridge` (e.g. `from context_bridge.sdk import ...`).
 
 From source (for development):
 
