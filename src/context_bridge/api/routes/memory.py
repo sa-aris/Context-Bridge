@@ -12,6 +12,7 @@ from context_bridge.api import metrics
 from context_bridge.api.deps import get_manager
 from context_bridge.api.schemas import (
     ChunkOut,
+    FeedbackRequest,
     ForgetResponse,
     ListResponse,
     QueryRequest,
@@ -185,6 +186,20 @@ def get_memory(record_id: str, manager: MemoryManager = Depends(get_manager)) ->
 @router.delete("/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_memory(record_id: str, manager: MemoryManager = Depends(get_manager)) -> None:
     manager.delete([record_id])
+
+
+@router.post("/feedback", status_code=status.HTTP_204_NO_CONTENT)
+def submit_feedback(
+    req: FeedbackRequest, request: Request, manager: MemoryManager = Depends(get_manager)
+) -> None:
+    """Signal whether a recalled memory was useful; re-ranks future recall."""
+    authorize(request, req.namespace, "write")
+    manager.record_feedback(
+        memory_id=req.memory_id,
+        namespace=req.namespace,
+        useful=req.useful,
+        weight=req.weight,
+    )
 
 
 @router.post("/summarize", response_model=SummarizeResponse)

@@ -10,15 +10,25 @@ from context_bridge.config import Settings
 from context_bridge.core.chunking import build_chunker
 from context_bridge.core.embeddings import build_embedder
 from context_bridge.core.embeddings.base import Embedder
-from context_bridge.core.memory.manager import MemoryManager
+from context_bridge.core.graph.extractor import build_extractor
+from context_bridge.core.memory.contradiction import build_detector
+from context_bridge.core.memory.manager import CognitiveServices, MemoryManager
 from context_bridge.core.memory.policy import WritePolicy
+from context_bridge.core.memory.redaction import build_redactor
 from context_bridge.core.memory.summarizer import build_summarizer
 from context_bridge.core.retrieval import Retriever, build_reranker
 from context_bridge.core.retrieval.retriever import RetrievalParams
 from context_bridge.core.vectorstore import build_vector_store
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working import build_working_memory
-from context_bridge.db import Database, EpisodeRepository, ParentRepository
+from context_bridge.db import (
+    ConflictRepository,
+    Database,
+    EpisodeRepository,
+    FeedbackRepository,
+    GraphRepository,
+    ParentRepository,
+)
 
 
 @dataclass(slots=True)
@@ -43,6 +53,9 @@ def build_container(settings: Settings) -> Container:
     db.create_all()
     episodes = EpisodeRepository(db)
     parents = ParentRepository(db)
+    feedback = FeedbackRepository(db)
+    conflicts = ConflictRepository(db)
+    graph = GraphRepository(db)
 
     reranker = build_reranker(settings)
     retriever = Retriever(
@@ -50,6 +63,8 @@ def build_container(settings: Settings) -> Container:
         store=store,
         reranker=reranker,
         parent_lookup=parents.get_texts,
+        feedback_lookup=feedback.scores,
+        feedback_weight=settings.feedback_weight,
     )
 
     policy = WritePolicy(
@@ -62,6 +77,16 @@ def build_container(settings: Settings) -> Container:
         candidate_pool=settings.prefetch_limit,
         mmr_lambda=settings.mmr_lambda,
     )
+    cognitive = CognitiveServices(
+        redactor=build_redactor(settings),
+        detector=build_detector(settings),
+        extractor=build_extractor(settings),
+        feedback=feedback,
+        conflicts=conflicts,
+        graph=graph,
+        graph_extraction=settings.graph_extraction,
+        contradiction_similarity=settings.contradiction_similarity,
+    )
     manager = MemoryManager(
         chunker=build_chunker(settings, embedder=embedder),
         embedder=embedder,
@@ -73,6 +98,7 @@ def build_container(settings: Settings) -> Container:
         policy=policy,
         defaults=defaults,
         summarizer=build_summarizer(settings),
+        cognitive=cognitive,
     )
     return Container(settings=settings, embedder=embedder, store=store, db=db, manager=manager)
 

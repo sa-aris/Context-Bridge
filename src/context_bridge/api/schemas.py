@@ -132,3 +132,32 @@ class ForgetResponse(BaseModel):
     vectors_deleted: int
     episodes_deleted: int
     parents_deleted: int
+
+
+class FeedbackRequest(BaseModel):
+    memory_id: str
+    namespace: str = "default"
+    useful: bool
+    weight: float = Field(default=1.0, gt=0, le=10)
+
+
+class ConsolidateResponse(BaseModel):
+    scanned: int
+    clusters: int
+    insights: int
+
+
+class ConflictResolveRequest(BaseModel):
+    winner_id: str | None = None
+
+
+class GraphEdgeOut(BaseModel):
+    source: str
+    relation: str
+    target: str
+    memory_id: str | None = None
+
+
+class GraphResponse(BaseModel):
+    entity: str
+    edges: list[GraphEdgeOut]

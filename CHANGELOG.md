@@ -35,3 +35,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Right-to-be-forgotten deletion by namespace/session, embedding-dimension
   guard, bounded input sizes, and credential-safe CORS defaults.
 - Tag-driven release workflow (GitHub Release + PyPI trusted publishing).
+- Cognitive layer (opt-in, behind protocols): reflective consolidation,
+  contradiction detection & truth-maintenance, a knowledge-graph layer,
+  outcome-feedback re-ranking, and PII/secret redaction on write.

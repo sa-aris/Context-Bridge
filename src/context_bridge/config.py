@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     # Maintenance — background TTL sweep (0 disables the periodic job)
     sweep_interval_seconds: int = 0
 
+    # Cognitive layer
+    redact_pii: bool = False
+    feedback_weight: float = 0.15  # how strongly outcome feedback re-ranks recall
+    consolidation_min_cluster: int = 3
+    consolidation_similarity: float = 0.83
+    detect_contradictions: bool = False
+    contradiction_similarity: float = 0.80
+    graph_extraction: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

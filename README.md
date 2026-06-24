@@ -156,6 +156,18 @@ vendor lock-in.
 | 🐳 **Production-ready** | Dockerfile, CI, Alembic migrations, typed SDK |
 | 🔌 **Pluggable** | Swap Qdrant/embedder/reranker behind protocols |
 
+### 🧠 Cognitive layer (opt-in)
+
+Beyond storage — the shared pool **consolidates, reconciles and learns**:
+
+| | |
+| --- | --- |
+| 💤 **Reflective consolidation** | Cluster related memories and synthesize higher-order insights no single agent wrote |
+| ⚖️ **Truth-maintenance** | Detect contradictions between agents, flag and resolve them |
+| 🕸️ **Knowledge graph** | Extract entity/relation triples; multi-hop `GET /v1/graph/neighbors` |
+| 🔁 **Learning recall** | Outcome feedback re-ranks future retrieval |
+| 🔒 **PII/secret redaction** | Mask sensitive data before it enters the shared pool |
+
 ## Install
 
 ```bash
@@ -262,8 +274,12 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `GET` · `DELETE` | `/v1/memory/{id}` | Fetch / remove a single record |
 | `DELETE` | `/v1/memory?namespace=&session_id=` | Erase all memory for a namespace/session |
 | `POST` | `/v1/memory/summarize` | Compress a session into a summary memory |
+| `POST` | `/v1/memory/feedback` | Signal whether a recalled memory was useful |
 | `GET` | `/v1/sessions/{id}/timeline` | Episodic / provenance view |
 | `POST` | `/v1/maintenance/sweep` | Delete TTL-expired memories |
+| `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
+| `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |
+| `GET` | `/v1/graph/neighbors` | Traverse the knowledge graph |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 
 Interactive OpenAPI docs are served at `/docs`.

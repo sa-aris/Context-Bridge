@@ -12,7 +12,11 @@ from dataclasses import dataclass, field
 
 from context_bridge.core.chunking.base import Chunker
 from context_bridge.core.embeddings.base import Embedder
+from context_bridge.core.graph.extractor import Extractor, RuleBasedExtractor
+from context_bridge.core.memory.consolidation import cluster_by_similarity
+from context_bridge.core.memory.contradiction import ContradictionDetector, NullDetector
 from context_bridge.core.memory.policy import WritePolicy, cosine
+from context_bridge.core.memory.redaction import NullRedactor, Redactor
 from context_bridge.core.memory.summarizer import ExtractiveSummarizer, Summarizer
 from context_bridge.core.models import (
     AssembledContext,
@@ -26,9 +30,29 @@ from context_bridge.core.retrieval.retriever import RetrievalParams, Retriever
 from context_bridge.core.tracing import span
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working.base import WorkingMemory
-from context_bridge.db.repository import EpisodeRepository, ParentRepository
+from context_bridge.db.repository import (
+    ConflictRepository,
+    EpisodeRepository,
+    FeedbackRepository,
+    GraphRepository,
+    ParentRepository,
+)
 
 _EPISODE_CONTENT_CAP = 2000
+
+
+@dataclass(slots=True)
+class CognitiveServices:
+    """Optional, opt-in cognitive-layer components used by the manager."""
+
+    redactor: Redactor = field(default_factory=NullRedactor)
+    detector: ContradictionDetector = field(default_factory=NullDetector)
+    extractor: Extractor = field(default_factory=RuleBasedExtractor)
+    feedback: FeedbackRepository | None = None
+    conflicts: ConflictRepository | None = None
+    graph: GraphRepository | None = None
+    graph_extraction: bool = False
+    contradiction_similarity: float = 0.8
 
 
 @dataclass(slots=True)
@@ -57,6 +81,7 @@ class MemoryManager:
         policy: WritePolicy,
         defaults: RetrievalParams,
         summarizer: Summarizer | None = None,
+        cognitive: CognitiveServices | None = None,
     ) -> None:
         self.chunker = chunker
         self.embedder = embedder
@@ -68,6 +93,7 @@ class MemoryManager:
         self.policy = policy
         self.defaults = defaults
         self.summarizer = summarizer or ExtractiveSummarizer()
+        self.cog = cognitive or CognitiveServices()
 
     # -- write path -------------------------------------------------------
     def write(
@@ -89,6 +115,8 @@ class MemoryManager:
     ) -> WriteResult:
         if not self.policy.passes_confidence(confidence):
             return WriteResult(skipped=True)
+
+        content = self.cog.redactor.redact(content)
 
         if summarize_before_store:
             content = self.summarizer.summarize(content)
@@ -140,6 +168,8 @@ class MemoryManager:
             with span("memory.upsert", records=len(records)):
                 self.store.upsert(records)
                 self._persist_parents(chunks, records, namespace)
+            self._detect_conflicts(records, namespace)
+            self._extract_graph(content, namespace, records[0].id)
 
         ids = [r.id for r in records]
         self.episodes.record(
@@ -190,6 +220,113 @@ class MemoryManager:
         )
         neighbor = neighbors[0] if neighbors else None
         return self.policy.is_duplicate(dense, neighbor)
+
+    def _detect_conflicts(self, records: list[MemoryRecord], namespace: str) -> None:
+        """Flag near-duplicate-but-disagreeing memories as conflicts."""
+        if self.cog.conflicts is None:
+            return
+        for rec in records:
+            if rec.dense is None:
+                continue
+            neighbors = self.store.hybrid_search(
+                dense=rec.dense, sparse=rec.sparse, limit=3, namespace=namespace
+            )
+            for nb in neighbors:
+                if nb.id == rec.id or nb.dense is None:
+                    continue
+                sim = cosine(rec.dense, nb.dense)
+                if sim >= self.cog.contradiction_similarity and self.cog.detector.is_contradiction(
+                    rec.content, nb.content
+                ):
+                    self.cog.conflicts.add(
+                        namespace=namespace,
+                        memory_id_a=rec.id,
+                        memory_id_b=nb.id,
+                        similarity=sim,
+                    )
+                    break
+
+    def _extract_graph(self, content: str, namespace: str, memory_id: str) -> None:
+        """Extract entity/relation triples into the knowledge graph."""
+        if not self.cog.graph_extraction or self.cog.graph is None:
+            return
+        for triple in self.cog.extractor.extract(content):
+            self.cog.graph.add_edge(
+                namespace=namespace,
+                source=triple.source,
+                relation=triple.relation,
+                target=triple.target,
+                memory_id=memory_id,
+            )
+
+    # -- cognitive layer --------------------------------------------------
+    def record_feedback(
+        self, *, memory_id: str, namespace: str, useful: bool, weight: float = 1.0
+    ) -> None:
+        """Record outcome feedback that re-ranks future recall."""
+        if self.cog.feedback is None:
+            return
+        self.cog.feedback.record(
+            memory_id=memory_id, namespace=namespace, delta=weight if useful else -weight
+        )
+
+    def consolidate(
+        self,
+        *,
+        namespace: str,
+        min_cluster: int,
+        similarity: float,
+        max_items: int = 500,
+        max_sentences: int = 5,
+        agent_id: str = "consolidator",
+    ) -> dict:
+        """Cluster a namespace's memories and write back synthesized insights."""
+        listed, _ = self.store.list_records(namespace=namespace, limit=max_items, cursor=None)
+        # Consolidate only raw memories, never previously-synthesized insights.
+        chunks = [c for c in listed if c.provenance.source != "consolidation"]
+        if len(chunks) < min_cluster:
+            return {"scanned": len(chunks), "clusters": 0, "insights": 0}
+
+        vectors = self.embedder.embed_dense([c.content for c in chunks])
+        groups = cluster_by_similarity(vectors, threshold=similarity)
+
+        insights = 0
+        used_clusters = 0
+        for group in groups:
+            if len(group) < min_cluster:
+                continue
+            used_clusters += 1
+            merged = "\n".join(chunks[i].content for i in group)
+            summary = self.summarizer.summarize(merged, max_sentences=max_sentences)
+            if not summary.strip():
+                continue
+            # Insights are intentionally new artifacts, so they bypass dedup.
+            result = self.write(
+                content=summary,
+                agent_id=agent_id,
+                session_id="consolidation",
+                namespace=namespace,
+                source="consolidation",
+                tags=["insight"],
+                dedup=False,
+            )
+            insights += result.stored
+        return {"scanned": len(chunks), "clusters": used_clusters, "insights": insights}
+
+    def graph_neighbors(self, *, namespace: str, entity: str, hops: int = 1) -> list[dict]:
+        if self.cog.graph is None:
+            return []
+        return self.cog.graph.neighbors(namespace=namespace, entity=entity, hops=hops)
+
+    def list_conflicts(self, *, namespace: str | None = None, status: str | None = None) -> list:
+        if self.cog.conflicts is None:
+            return []
+        return self.cog.conflicts.list(namespace=namespace, status=status)
+
+    def resolve_conflict(self, conflict_id: str, *, winner_id: str | None) -> bool:
+        if self.cog.conflicts is None:
+            return False
+        return self.cog.conflicts.resolve(conflict_id, winner_id=winner_id)
 
     # -- read path --------------------------------------------------------
     def query(
@@ -283,6 +420,8 @@ class MemoryManager:
         vectors = self.store.delete_by(namespace=namespace, session_id=session_id)
         episodes = self.episodes.delete_by(namespace=namespace, session_id=session_id)
         parents = self.parents.delete_by_namespace(namespace) if namespace else 0
+        if namespace and self.cog.graph is not None:
+            self.cog.graph.delete_by_namespace(namespace)
         return {
             "vectors_deleted": vectors,
             "episodes_deleted": episodes,

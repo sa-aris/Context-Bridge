@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, Float, Index, String, Text
+from sqlalchemy import JSON, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -76,3 +76,91 @@ class ParentDocument(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
+
+
+class Feedback(Base):
+    """Aggregated outcome feedback per memory, used to re-rank recall."""
+
+    __tablename__ = "feedback"
+
+    memory_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    votes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+
+class Conflict(Base):
+    """A detected contradiction between two memories (truth-maintenance)."""
+
+    __tablename__ = "conflicts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    memory_id_a: Mapped[str] = mapped_column(String(64), nullable=False)
+    memory_id_b: Mapped[str] = mapped_column(String(64), nullable=False)
+    similarity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")  # open|resolved
+    winner_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_conflicts_namespace_status", "namespace", "status"),)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "namespace": self.namespace,
+            "memory_id_a": self.memory_id_a,
+            "memory_id_b": self.memory_id_b,
+            "similarity": self.similarity,
+            "status": self.status,
+            "winner_id": self.winner_id,
+            "detected_at": self.detected_at.isoformat() if self.detected_at else None,
+        }
+
+
+class GraphNode(Base):
+    """An entity extracted from memory content (knowledge-graph node)."""
+
+    __tablename__ = "graph_nodes"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False, default="entity")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (UniqueConstraint("namespace", "name", name="uq_graph_node"),)
+
+
+class GraphEdge(Base):
+    """A relation between two entities, attributed to a source memory."""
+
+    __tablename__ = "graph_edges"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    source: Mapped[str] = mapped_column(String(256), nullable=False)
+    relation: Mapped[str] = mapped_column(String(128), nullable=False)
+    target: Mapped[str] = mapped_column(String(256), nullable=False)
+    memory_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_graph_edges_ns_source", "namespace", "source"),)
+
+    def as_dict(self) -> dict:
+        return {
+            "source": self.source,
+            "relation": self.relation,
+            "target": self.target,
+            "memory_id": self.memory_id,
+            "namespace": self.namespace,
+        }

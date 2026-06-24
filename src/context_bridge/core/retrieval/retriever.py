@@ -18,6 +18,7 @@ from context_bridge.core.tracing import span
 from context_bridge.core.vectorstore.base import VectorStore
 
 ParentLookup = Callable[[list[str]], dict[str, str]]
+FeedbackLookup = Callable[[list[str]], dict[str, float]]
 
 
 @dataclass(slots=True)
@@ -41,11 +42,15 @@ class Retriever:
         store: VectorStore,
         reranker: Reranker,
         parent_lookup: ParentLookup | None = None,
+        feedback_lookup: FeedbackLookup | None = None,
+        feedback_weight: float = 0.0,
     ) -> None:
         self.embedder = embedder
         self.store = store
         self.reranker = reranker
         self.parent_lookup = parent_lookup
+        self.feedback_lookup = feedback_lookup
+        self.feedback_weight = feedback_weight
 
     def retrieve(
         self,
@@ -77,6 +82,9 @@ class Retriever:
             with span("retrieve.rerank", candidates=len(candidates)):
                 candidates = self.reranker.rerank(query, candidates)
 
+        if self.feedback_lookup is not None and self.feedback_weight:
+            self._apply_feedback(candidates)
+
         with span("retrieve.assemble", top_k=params.top_k, token_budget=params.token_budget):
             selected = mmr_select(candidates, lambda_=params.mmr_lambda, top_k=params.top_k)
             if params.expand_parents and self.parent_lookup is not None:
@@ -86,6 +94,19 @@ class Retriever:
                 token_budget=params.token_budget,
                 expand_parents=params.expand_parents,
             )
+
+    def _apply_feedback(self, chunks: list[RetrievedChunk]) -> None:
+        """Nudge candidate scores by accumulated outcome feedback."""
+        assert self.feedback_lookup is not None
+        scores = self.feedback_lookup([c.id for c in chunks])
+        if not scores:
+            return
+        import math
+
+        for chunk in chunks:
+            signal = scores.get(chunk.id)
+            if signal:
+                chunk.score += self.feedback_weight * math.tanh(signal)
 
     def _hydrate_parents(self, chunks: list[RetrievedChunk]) -> None:
         assert self.parent_lookup is not None

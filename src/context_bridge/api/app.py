@@ -18,7 +18,14 @@ from context_bridge import __version__
 from context_bridge.api import metrics
 from context_bridge.api.access import AccessControl
 from context_bridge.api.deps import build_container
-from context_bridge.api.routes import health, maintenance, memory, sessions
+from context_bridge.api.routes import (
+    conflicts,
+    graph,
+    health,
+    maintenance,
+    memory,
+    sessions,
+)
 from context_bridge.api.security import api_key_guard, build_rate_limiter, rate_limit_guard
 from context_bridge.api.tracing import setup_tracing
 from context_bridge.config import Settings, get_settings
@@ -98,6 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(memory.router, prefix=API_V1, dependencies=guarded)
     app.include_router(sessions.router, prefix=API_V1, dependencies=guarded)
     app.include_router(maintenance.router, prefix=API_V1, dependencies=guarded)
+    app.include_router(conflicts.router, prefix=API_V1, dependencies=guarded)
+    app.include_router(graph.router, prefix=API_V1, dependencies=guarded)
     return app
 
 
