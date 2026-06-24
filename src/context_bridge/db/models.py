@@ -237,3 +237,19 @@ class Procedure(Base):
             "success_rate": round(self.success_rate, 4),
             "created_by": self.created_by,
         }
+
+
+class EntityAlias(Base):
+    """Maps an entity alias to its canonical name within a namespace."""
+
+    __tablename__ = "entity_aliases"
+
+    id: Mapped[str] = mapped_column(String(320), primary_key=True)  # namespace::alias
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False)
+    alias: Mapped[str] = mapped_column(String(256), nullable=False)
+    canonical: Mapped[str] = mapped_column(String(256), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_entity_aliases_namespace", "namespace"),)

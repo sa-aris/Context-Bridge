@@ -25,6 +25,7 @@ from context_bridge.api.routes import (
     learning,
     maintenance,
     memory,
+    quality,
     sessions,
 )
 from context_bridge.api.security import api_key_guard, build_rate_limiter, rate_limit_guard
@@ -109,6 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(conflicts.router, prefix=API_V1, dependencies=guarded)
     app.include_router(graph.router, prefix=API_V1, dependencies=guarded)
     app.include_router(learning.router, prefix=API_V1, dependencies=guarded)
+    app.include_router(quality.router, prefix=API_V1, dependencies=guarded)
     return app
 
 

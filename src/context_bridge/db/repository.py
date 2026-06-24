@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from collections import Counter, defaultdict
 
+from sqlalchemy import delete, func, select
+
+from context_bridge.core.graph.resolver import choose_canonical, normalize
 from context_bridge.core.models import new_id
 from context_bridge.db.models import (
     AgentProfile,
     Conflict,
+    EntityAlias,
     Episode,
     Feedback,
     GraphEdge,
@@ -75,6 +79,26 @@ class EpisodeRepository:
         with self.db.session() as session:
             return session.execute(stmt).rowcount or 0  # type: ignore[attr-defined]
 
+    def stats(self, namespace: str) -> dict:
+        """Counts used by the collaboration-quality score."""
+        with self.db.session() as session:
+            writes = session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .where(Episode.namespace == namespace, Episode.kind == "write")
+            )
+            queries = session.scalar(
+                select(func.count())
+                .select_from(Episode)
+                .where(Episode.namespace == namespace, Episode.kind == "query")
+            )
+            hits = 0
+            q_stmt = select(Episode).where(Episode.namespace == namespace, Episode.kind == "query")
+            for ep in session.scalars(q_stmt):
+                if ep.chunk_ids:
+                    hits += 1
+        return {"writes": int(writes or 0), "queries": int(queries or 0), "query_hits": hits}
+
 
 class ParentRepository:
     """Stores and retrieves parent documents for the small-to-big strategy."""
@@ -132,6 +156,16 @@ class FeedbackRepository:
         with self.db.session() as session:
             return {f.memory_id: f.score for f in session.scalars(stmt)}
 
+    def namespace_stats(self, namespace: str) -> dict:
+        stmt = select(Feedback).where(Feedback.namespace == namespace)
+        positive = total = 0
+        with self.db.session() as session:
+            for row in session.scalars(stmt):
+                total += 1
+                if row.score > 0:
+                    positive += 1
+        return {"positive": positive, "total": total}
+
 
 class ConflictRepository:
     """Records and resolves detected contradictions (truth-maintenance)."""
@@ -172,6 +206,17 @@ class ConflictRepository:
             row.winner_id = winner_id
             return True
 
+    def count_open(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return int(
+                session.scalar(
+                    select(func.count())
+                    .select_from(Conflict)
+                    .where(Conflict.namespace == namespace, Conflict.status == "open")
+                )
+                or 0
+            )
+
 
 class GraphRepository:
     """A lightweight knowledge graph (entities + relations) over memory."""
@@ -179,18 +224,35 @@ class GraphRepository:
     def __init__(self, db: Database) -> None:
         self.db = db
 
+    @staticmethod
+    def _alias_key(namespace: str, alias: str) -> str:
+        return f"{namespace}::{normalize(alias)}"
+
+    def _alias_map(self, session, namespace: str) -> dict[str, str]:
+        """Return ``{normalized_alias: canonical}`` for a namespace."""
+        stmt = select(EntityAlias).where(EntityAlias.namespace == namespace)
+        return {row.alias: row.canonical for row in session.scalars(stmt)}
+
+    @staticmethod
+    def _resolve(name: str, alias_map: dict[str, str]) -> str:
+        return alias_map.get(normalize(name), name)
+
+    def _ensure_node(self, session, namespace: str, name: str) -> None:
+        exists = session.scalar(
+            select(GraphNode).where(GraphNode.namespace == namespace, GraphNode.name == name)
+        )
+        if exists is None:
+            session.add(GraphNode(id=new_id(), namespace=namespace, name=name))
+
     def add_edge(
         self, *, namespace: str, source: str, relation: str, target: str, memory_id: str | None
     ) -> None:
         with self.db.session() as session:
-            for name in (source, target):
-                exists = session.scalar(
-                    select(GraphNode).where(
-                        GraphNode.namespace == namespace, GraphNode.name == name
-                    )
-                )
-                if exists is None:
-                    session.add(GraphNode(id=new_id(), namespace=namespace, name=name))
+            alias_map = self._alias_map(session, namespace)
+            source = self._resolve(source, alias_map)
+            target = self._resolve(target, alias_map)
+            self._ensure_node(session, namespace, source)
+            self._ensure_node(session, namespace, target)
             session.add(
                 GraphEdge(
                     id=new_id(),
@@ -201,6 +263,92 @@ class GraphRepository:
                     memory_id=memory_id,
                 )
             )
+
+    def register_alias(self, *, namespace: str, alias: str, canonical: str) -> bool:
+        """Map ``alias`` to ``canonical`` and rewrite existing nodes/edges.
+
+        Returns ``False`` when the alias is empty or already resolves to the
+        same canonical name (a no-op).
+        """
+        if not normalize(alias) or normalize(alias) == normalize(canonical):
+            return False
+        key = self._alias_key(namespace, alias)
+        with self.db.session() as session:
+            row = session.get(EntityAlias, key)
+            if row is None:
+                session.add(
+                    EntityAlias(
+                        id=key, namespace=namespace, alias=normalize(alias), canonical=canonical
+                    )
+                )
+            else:
+                row.canonical = canonical
+            self._merge_into(session, namespace, alias=alias, canonical=canonical)
+        return True
+
+    def _merge_into(self, session, namespace: str, *, alias: str, canonical: str) -> None:
+        """Rewrite edges off ``alias`` onto ``canonical`` and drop the stale node."""
+        self._ensure_node(session, namespace, canonical)
+        for edge in session.scalars(select(GraphEdge).where(GraphEdge.namespace == namespace)):
+            if normalize(edge.source) == normalize(alias):
+                edge.source = canonical
+            if normalize(edge.target) == normalize(alias):
+                edge.target = canonical
+        session.execute(
+            delete(GraphNode).where(GraphNode.namespace == namespace, GraphNode.name == alias)
+        )
+
+    def align(self, namespace: str) -> dict:
+        """Merge surface variants of the same entity onto one canonical name.
+
+        Nodes are grouped by their normalized name; within each group the most
+        connected variant wins (ties broken by brevity, then alphabetically).
+        Losing variants become aliases and their edges are rewritten.
+        """
+        groups_merged = aliases_created = 0
+        with self.db.session() as session:
+            nodes = list(session.scalars(select(GraphNode).where(GraphNode.namespace == namespace)))
+            groups: dict[str, list[str]] = defaultdict(list)
+            for node in nodes:
+                groups[normalize(node.name)].append(node.name)
+
+            edge_counts: Counter[str] = Counter()
+            for edge in session.scalars(select(GraphEdge).where(GraphEdge.namespace == namespace)):
+                edge_counts[edge.source] += 1
+                edge_counts[edge.target] += 1
+
+            for variants in groups.values():
+                if len(variants) < 2:
+                    continue
+                groups_merged += 1
+                canonical = choose_canonical(variants, dict(edge_counts))
+                for variant in variants:
+                    if variant == canonical:
+                        continue
+                    key = self._alias_key(namespace, variant)
+                    if session.get(EntityAlias, key) is None:
+                        session.add(
+                            EntityAlias(
+                                id=key,
+                                namespace=namespace,
+                                alias=normalize(variant),
+                                canonical=canonical,
+                            )
+                        )
+                        aliases_created += 1
+                    self._merge_into(session, namespace, alias=variant, canonical=canonical)
+        return {"groups_merged": groups_merged, "aliases_created": aliases_created}
+
+    def list_aliases(self, namespace: str) -> list[dict]:
+        stmt = (
+            select(EntityAlias)
+            .where(EntityAlias.namespace == namespace)
+            .order_by(EntityAlias.canonical.asc(), EntityAlias.alias.asc())
+        )
+        with self.db.session() as session:
+            return [
+                {"alias": row.alias, "canonical": row.canonical} for row in session.scalars(stmt)
+            ]
 
     def neighbors(self, *, namespace: str, entity: str, hops: int = 1) -> list[dict]:
         """Breadth-first traversal from ``entity`` up to ``hops`` edges out."""
@@ -238,6 +386,7 @@ class GraphRepository:
                 or 0
             )
             session.execute(delete(GraphNode).where(GraphNode.namespace == namespace))
+            session.execute(delete(EntityAlias).where(EntityAlias.namespace == namespace))
         return edges
 
 
@@ -289,6 +438,17 @@ class AgentProfileRepository:
         )
         with self.db.session() as session:
             return [p.as_dict() for p in session.scalars(stmt)]
+
+    def count(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return int(
+                session.scalar(
+                    select(func.count())
+                    .select_from(AgentProfile)
+                    .where(AgentProfile.namespace == namespace)
+                )
+                or 0
+            )
 
     def delete_by_namespace(self, namespace: str) -> int:
         with self.db.session() as session:

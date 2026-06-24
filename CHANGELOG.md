@@ -45,3 +45,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`/v1/sessions/{id}/turns` + `/distill`).
 - Temporal recall: date-aware context (`include_dates`) and `since`/`until`
   time-window filters on query.
+- Ontology alignment: merge surface variants of the same entity onto one
+  canonical name — automatically (`POST /v1/graph/align`) or by declaring an
+  alias (`POST /v1/graph/aliases`) — so agents converge on a shared vocabulary.
+- Collaboration-quality score: a single composite 0-100 metric per namespace
+  (recall hit-rate, feedback positivity, conflict health) at `GET /v1/quality`,
+  so a team can watch shared memory pay off over time.

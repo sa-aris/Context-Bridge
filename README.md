@@ -179,6 +179,8 @@ The pool doesn't just remember — the *team* gets better over time:
 | 📒 **Procedural memory** | Reusable playbooks with success tracking, so solved problems aren't re-solved (`/v1/procedures`) |
 | 🧷 **Salient distillation** | Stream cheap turns; the system keeps only what was *dwelled upon* and carries it into future chats (`/v1/sessions/{id}/distill`) |
 | 📅 **Temporal recall** | Memories carry dates; recall with `include_dates` and `since`/`until` — remembers *when*, human-like |
+| 🧭 **Ontology alignment** | Agents that named the same entity differently converge on one canonical name — auto (`POST /v1/graph/align`) or by alias (`POST /v1/graph/aliases`) |
+| 📈 **Collaboration-quality score** | One 0-100 metric (`GET /v1/quality`) blends recall hit-rate, feedback positivity and conflict health, so a team can *watch shared memory pay off* |
 
 ## Install
 
@@ -294,9 +296,11 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
 | `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |
 | `GET` | `/v1/graph/neighbors` | Traverse the knowledge graph |
+| `POST` | `/v1/graph/aliases` · `/v1/graph/align` | Map an alias · auto-merge entity variants |
 | `GET` | `/v1/agents` | Agent reputation leaderboard |
 | `POST` | `/v1/outcomes` | Credit a session's memories & agents by outcome |
 | `GET` · `POST` | `/v1/procedures` · `…/{id}/outcome` | Playbooks with success tracking |
+| `GET` | `/v1/quality` | Collaboration-quality score for a namespace |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 
 Interactive OpenAPI docs are served at `/docs`.

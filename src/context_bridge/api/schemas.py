@@ -190,6 +190,37 @@ class GraphResponse(BaseModel):
     edges: list[GraphEdgeOut]
 
 
+class AliasRequest(BaseModel):
+    namespace: str = "default"
+    alias: str = Field(..., min_length=1, max_length=256)
+    canonical: str = Field(..., min_length=1, max_length=256)
+
+
+class AliasResponse(BaseModel):
+    registered: bool
+    aliases: list[dict]
+
+
+class AlignRequest(BaseModel):
+    namespace: str = "default"
+
+
+class AlignResponse(BaseModel):
+    groups_merged: int
+    aliases_created: int
+
+
+class QualityResponse(BaseModel):
+    score: float
+    hit_rate: float
+    feedback_positivity: float
+    conflict_health: float
+    writes: int
+    queries: int
+    open_conflicts: int
+    agents: int
+
+
 class OutcomeRequest(BaseModel):
     session_id: str
     namespace: str = "default"

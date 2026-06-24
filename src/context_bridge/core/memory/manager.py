@@ -423,6 +423,64 @@ class MemoryManager:
             return []
         return self.cog.graph.neighbors(namespace=namespace, entity=entity, hops=hops)
 
+    # -- ontology alignment ----------------------------------------------
+    def align_graph(self, *, namespace: str) -> dict:
+        """Merge surface variants of the same entity onto one canonical name.
+
+        Lets agents that named the same thing differently converge on a shared
+        vocabulary, so graph queries no longer fragment across spellings.
+        """
+        if self.cog.graph is None:
+            return {"groups_merged": 0, "aliases_created": 0}
+        return self.cog.graph.align(namespace)
+
+    def add_alias(self, *, namespace: str, alias: str, canonical: str) -> bool:
+        """Manually declare that ``alias`` refers to ``canonical``."""
+        if self.cog.graph is None:
+            return False
+        return self.cog.graph.register_alias(namespace=namespace, alias=alias, canonical=canonical)
+
+    def list_aliases(self, *, namespace: str) -> list[dict]:
+        if self.cog.graph is None:
+            return []
+        return self.cog.graph.list_aliases(namespace)
+
+    # -- collaboration quality -------------------------------------------
+    def collaboration_quality(self, *, namespace: str) -> dict:
+        """A composite 0-100 score of how well agents are working together.
+
+        It blends three observable signals into one trackable metric:
+        recall hit-rate (memory is actually useful), feedback positivity
+        (recalled memory leads to good outcomes), and conflict health (few
+        unresolved contradictions). Watching it rise is how a team sees the
+        shared memory paying off over time.
+        """
+        ep = self.episodes.stats(namespace)
+        queries = ep["queries"]
+        hit_rate = ep["query_hits"] / queries if queries else 0.0
+
+        fb = self.cog.feedback.namespace_stats(namespace) if self.cog.feedback else {}
+        fb_total = fb.get("total", 0)
+        feedback_positivity = fb.get("positive", 0) / fb_total if fb_total else 0.0
+
+        open_conflicts = self.cog.conflicts.count_open(namespace) if self.cog.conflicts else 0
+        writes = ep["writes"]
+        # one open conflict per write is the worst case; clamp to [0, 1].
+        conflict_health = 1.0 - min(open_conflicts / writes, 1.0) if writes else 1.0
+
+        agents = self.cog.agents.count(namespace) if self.cog.agents else 0
+        score = 100.0 * (0.4 * hit_rate + 0.4 * feedback_positivity + 0.2 * conflict_health)
+        return {
+            "score": round(score, 1),
+            "hit_rate": round(hit_rate, 4),
+            "feedback_positivity": round(feedback_positivity, 4),
+            "conflict_health": round(conflict_health, 4),
+            "writes": writes,
+            "queries": queries,
+            "open_conflicts": open_conflicts,
+            "agents": agents,
+        }
+
     def list_conflicts(self, *, namespace: str | None = None, status: str | None = None) -> list:
         if self.cog.conflicts is None:
             return []
