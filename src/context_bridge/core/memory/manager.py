@@ -31,11 +31,13 @@ from context_bridge.core.tracing import span
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working.base import WorkingMemory
 from context_bridge.db.repository import (
+    AgentProfileRepository,
     ConflictRepository,
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
     ParentRepository,
+    ProcedureRepository,
 )
 
 _EPISODE_CONTENT_CAP = 2000
@@ -51,6 +53,8 @@ class CognitiveServices:
     feedback: FeedbackRepository | None = None
     conflicts: ConflictRepository | None = None
     graph: GraphRepository | None = None
+    agents: AgentProfileRepository | None = None
+    procedures: ProcedureRepository | None = None
     graph_extraction: bool = False
     contradiction_similarity: float = 0.8
 
@@ -170,6 +174,8 @@ class MemoryManager:
                 self._persist_parents(chunks, records, namespace)
             self._detect_conflicts(records, namespace)
             self._extract_graph(content, namespace, records[0].id)
+            if self.cog.agents is not None:
+                self.cog.agents.record_write(namespace=namespace, agent_id=agent_id)
 
         ids = [r.id for r in records]
         self.episodes.record(
@@ -263,12 +269,78 @@ class MemoryManager:
     def record_feedback(
         self, *, memory_id: str, namespace: str, useful: bool, weight: float = 1.0
     ) -> None:
-        """Record outcome feedback that re-ranks future recall."""
+        """Record outcome feedback that re-ranks future recall and credits the author."""
         if self.cog.feedback is None:
             return
-        self.cog.feedback.record(
-            memory_id=memory_id, namespace=namespace, delta=weight if useful else -weight
+        delta = weight if useful else -weight
+        self.cog.feedback.record(memory_id=memory_id, namespace=namespace, delta=delta)
+        if self.cog.agents is not None:
+            chunk = self.store.get(memory_id)
+            if chunk is not None:
+                self.cog.agents.record_outcome(
+                    namespace=namespace,
+                    agent_id=chunk.provenance.agent_id,
+                    delta=delta,
+                    useful=useful,
+                )
+
+    def record_outcome(
+        self, *, session_id: str, namespace: str, success: bool, weight: float = 1.0
+    ) -> dict:
+        """Propagate a task outcome as credit to every memory and agent in the session.
+
+        This closes the learning loop: a successful run reinforces the memories it
+        produced and the agents that produced them; a failed run does the opposite.
+        """
+        delta = weight if success else -weight
+        memories = 0
+        agents: set[str] = set()
+        for episode in self.episodes.timeline(session_id):
+            if episode["kind"] != "write":
+                continue
+            for chunk_id in episode["chunk_ids"]:
+                if self.cog.feedback is not None:
+                    self.cog.feedback.record(memory_id=chunk_id, namespace=namespace, delta=delta)
+                    memories += 1
+            agent_id = episode["agent_id"]
+            if self.cog.agents is not None and agent_id:
+                self.cog.agents.record_outcome(
+                    namespace=namespace, agent_id=agent_id, delta=delta, useful=success
+                )
+                agents.add(agent_id)
+        return {"memories_credited": memories, "agents_credited": len(agents), "success": success}
+
+    def agent_leaderboard(self, *, namespace: str, limit: int = 20) -> list[dict]:
+        return self.cog.agents.top(namespace=namespace, limit=limit) if self.cog.agents else []
+
+    def create_procedure(
+        self,
+        *,
+        namespace: str,
+        title: str,
+        steps: list[str],
+        tags: list[str] | None = None,
+        created_by: str | None = None,
+    ) -> str | None:
+        if self.cog.procedures is None:
+            return None
+        return self.cog.procedures.create(
+            namespace=namespace, title=title, steps=steps, tags=tags, created_by=created_by
         )
+
+    def list_procedures(
+        self, *, namespace: str, query: str | None = None, limit: int = 50
+    ) -> list[dict]:
+        return (
+            self.cog.procedures.list(namespace=namespace, query=query, limit=limit)
+            if self.cog.procedures
+            else []
+        )
+
+    def record_procedure_outcome(self, procedure_id: str, *, success: bool) -> bool:
+        if self.cog.procedures is None:
+            return False
+        return self.cog.procedures.record_outcome(procedure_id, success=success)
 
     def consolidate(
         self,
@@ -422,6 +494,10 @@ class MemoryManager:
         parents = self.parents.delete_by_namespace(namespace) if namespace else 0
         if namespace and self.cog.graph is not None:
             self.cog.graph.delete_by_namespace(namespace)
+        if namespace and self.cog.agents is not None:
+            self.cog.agents.delete_by_namespace(namespace)
+        if namespace and self.cog.procedures is not None:
+            self.cog.procedures.delete_by_namespace(namespace)
         return {
             "vectors_deleted": vectors,
             "episodes_deleted": episodes,

@@ -168,6 +168,16 @@ Beyond storage — the shared pool **consolidates, reconciles and learns**:
 | 🔁 **Learning recall** | Outcome feedback re-ranks future retrieval |
 | 🔒 **PII/secret redaction** | Mask sensitive data before it enters the shared pool |
 
+### 🤝 Collective learning (the team compounds)
+
+The pool doesn't just remember — the *team* gets better over time:
+
+| | |
+| --- | --- |
+| 🏅 **Agent reputation** | Per-namespace profiles learn who is reliable at what (`GET /v1/agents`) |
+| 🎯 **Outcome credit** | A task's success/failure propagates to the memories and agents behind it (`POST /v1/outcomes`) |
+| 📒 **Procedural memory** | Reusable playbooks with success tracking, so solved problems aren't re-solved (`/v1/procedures`) |
+
 ## Install
 
 ```bash
@@ -280,6 +290,9 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
 | `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |
 | `GET` | `/v1/graph/neighbors` | Traverse the knowledge graph |
+| `GET` | `/v1/agents` | Agent reputation leaderboard |
+| `POST` | `/v1/outcomes` | Credit a session's memories & agents by outcome |
+| `GET` · `POST` | `/v1/procedures` · `…/{id}/outcome` | Playbooks with success tracking |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 
 Interactive OpenAPI docs are served at `/docs`.

@@ -161,3 +161,40 @@ class GraphEdgeOut(BaseModel):
 class GraphResponse(BaseModel):
     entity: str
     edges: list[GraphEdgeOut]
+
+
+class OutcomeRequest(BaseModel):
+    session_id: str
+    namespace: str = "default"
+    success: bool
+    weight: float = Field(default=1.0, gt=0, le=10)
+
+
+class OutcomeResponse(BaseModel):
+    memories_credited: int
+    agents_credited: int
+    success: bool
+
+
+class AgentsResponse(BaseModel):
+    agents: list[dict]
+
+
+class ProcedureCreate(BaseModel):
+    namespace: str = "default"
+    title: str = Field(..., min_length=1, max_length=512)
+    steps: list[str] = Field(..., min_length=1)
+    tags: list[str] = Field(default_factory=list)
+    created_by: str | None = None
+
+
+class ProcedureCreated(BaseModel):
+    id: str
+
+
+class ProceduresResponse(BaseModel):
+    procedures: list[dict]
+
+
+class ProcedureOutcomeRequest(BaseModel):
+    success: bool

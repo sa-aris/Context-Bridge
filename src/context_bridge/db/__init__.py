@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from context_bridge.db.models import (
+    AgentProfile,
     Base,
     Conflict,
     Episode,
@@ -10,13 +11,16 @@ from context_bridge.db.models import (
     GraphEdge,
     GraphNode,
     ParentDocument,
+    Procedure,
 )
 from context_bridge.db.repository import (
+    AgentProfileRepository,
     ConflictRepository,
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
     ParentRepository,
+    ProcedureRepository,
 )
 from context_bridge.db.session import Database
 
@@ -28,10 +32,14 @@ __all__ = [
     "Conflict",
     "GraphNode",
     "GraphEdge",
+    "AgentProfile",
+    "Procedure",
     "EpisodeRepository",
     "ParentRepository",
     "FeedbackRepository",
     "ConflictRepository",
     "GraphRepository",
+    "AgentProfileRepository",
+    "ProcedureRepository",
     "Database",
 ]

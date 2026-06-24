@@ -38,3 +38,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Cognitive layer (opt-in, behind protocols): reflective consolidation,
   contradiction detection & truth-maintenance, a knowledge-graph layer,
   outcome-feedback re-ranking, and PII/secret redaction on write.
+- Collective learning: per-namespace agent reputation profiles, task-outcome
+  credit propagation, and procedural memory (playbooks with success tracking).

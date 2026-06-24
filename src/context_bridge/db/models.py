@@ -164,3 +164,76 @@ class GraphEdge(Base):
             "memory_id": self.memory_id,
             "namespace": self.namespace,
         }
+
+
+class AgentProfile(Base):
+    """Per-namespace reputation for an agent — who is good at what."""
+
+    __tablename__ = "agent_profiles"
+
+    id: Mapped[str] = mapped_column(String(320), primary_key=True)  # namespace::agent_id
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False)
+    agent_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    writes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    useful: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    unhelpful: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_agent_profiles_ns_score", "namespace", "score"),)
+
+    @property
+    def reputation(self) -> float:
+        total = self.useful + self.unhelpful
+        return self.useful / total if total else 0.0
+
+    def as_dict(self) -> dict:
+        return {
+            "agent_id": self.agent_id,
+            "namespace": self.namespace,
+            "writes": self.writes,
+            "useful": self.useful,
+            "unhelpful": self.unhelpful,
+            "score": self.score,
+            "reputation": round(self.reputation, 4),
+        }
+
+
+class Procedure(Base):
+    """A reusable playbook distilled from successful work (procedural memory)."""
+
+    __tablename__ = "procedures"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    steps: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    tags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    success_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fail_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_procedures_namespace", "namespace"),)
+
+    @property
+    def success_rate(self) -> float:
+        total = self.success_count + self.fail_count
+        return self.success_count / total if total else 0.0
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "namespace": self.namespace,
+            "title": self.title,
+            "steps": list(self.steps or []),
+            "tags": list(self.tags or []),
+            "success_count": self.success_count,
+            "fail_count": self.fail_count,
+            "success_rate": round(self.success_rate, 4),
+            "created_by": self.created_by,
+        }

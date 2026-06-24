@@ -22,6 +22,7 @@ from context_bridge.api.routes import (
     conflicts,
     graph,
     health,
+    learning,
     maintenance,
     memory,
     sessions,
@@ -107,6 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(maintenance.router, prefix=API_V1, dependencies=guarded)
     app.include_router(conflicts.router, prefix=API_V1, dependencies=guarded)
     app.include_router(graph.router, prefix=API_V1, dependencies=guarded)
+    app.include_router(learning.router, prefix=API_V1, dependencies=guarded)
     return app
 
 

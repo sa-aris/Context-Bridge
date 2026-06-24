@@ -6,12 +6,14 @@ from sqlalchemy import delete, select
 
 from context_bridge.core.models import new_id
 from context_bridge.db.models import (
+    AgentProfile,
     Conflict,
     Episode,
     Feedback,
     GraphEdge,
     GraphNode,
     ParentDocument,
+    Procedure,
 )
 from context_bridge.db.session import Database
 
@@ -237,3 +239,122 @@ class GraphRepository:
             )
             session.execute(delete(GraphNode).where(GraphNode.namespace == namespace))
         return edges
+
+
+class AgentProfileRepository:
+    """Per-namespace agent reputation (writes + outcome-weighted score)."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    @staticmethod
+    def _key(namespace: str, agent_id: str) -> str:
+        return f"{namespace}::{agent_id}"
+
+    def _get_or_create(self, session, namespace: str, agent_id: str) -> AgentProfile:
+        key = self._key(namespace, agent_id)
+        row = session.get(AgentProfile, key)
+        if row is None:
+            row = AgentProfile(
+                id=key,
+                namespace=namespace,
+                agent_id=agent_id,
+                writes=0,
+                useful=0,
+                unhelpful=0,
+                score=0.0,
+            )
+            session.add(row)
+        return row
+
+    def record_write(self, *, namespace: str, agent_id: str) -> None:
+        with self.db.session() as session:
+            self._get_or_create(session, namespace, agent_id).writes += 1
+
+    def record_outcome(self, *, namespace: str, agent_id: str, delta: float, useful: bool) -> None:
+        with self.db.session() as session:
+            row = self._get_or_create(session, namespace, agent_id)
+            row.score += delta
+            if useful:
+                row.useful += 1
+            else:
+                row.unhelpful += 1
+
+    def top(self, *, namespace: str, limit: int = 20) -> list[dict]:
+        stmt = (
+            select(AgentProfile)
+            .where(AgentProfile.namespace == namespace)
+            .order_by(AgentProfile.score.desc())
+            .limit(limit)
+        )
+        with self.db.session() as session:
+            return [p.as_dict() for p in session.scalars(stmt)]
+
+    def delete_by_namespace(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return (
+                session.execute(  # type: ignore[attr-defined]
+                    delete(AgentProfile).where(AgentProfile.namespace == namespace)
+                ).rowcount
+                or 0
+            )
+
+
+class ProcedureRepository:
+    """Reusable playbooks with success/failure tracking (procedural memory)."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def create(
+        self,
+        *,
+        namespace: str,
+        title: str,
+        steps: list[str],
+        tags: list[str] | None = None,
+        created_by: str | None = None,
+    ) -> str:
+        proc_id = new_id()
+        with self.db.session() as session:
+            session.add(
+                Procedure(
+                    id=proc_id,
+                    namespace=namespace,
+                    title=title,
+                    steps=list(steps),
+                    tags=list(tags or []),
+                    created_by=created_by,
+                )
+            )
+        return proc_id
+
+    def list(self, *, namespace: str, query: str | None = None, limit: int = 50) -> list[dict]:
+        stmt = select(Procedure).where(Procedure.namespace == namespace)
+        if query:
+            stmt = stmt.where(Procedure.title.ilike(f"%{query}%"))
+        stmt = stmt.order_by(Procedure.success_count.desc(), Procedure.created_at.desc()).limit(
+            limit
+        )
+        with self.db.session() as session:
+            return [p.as_dict() for p in session.scalars(stmt)]
+
+    def record_outcome(self, procedure_id: str, *, success: bool) -> bool:
+        with self.db.session() as session:
+            row = session.get(Procedure, procedure_id)
+            if row is None:
+                return False
+            if success:
+                row.success_count += 1
+            else:
+                row.fail_count += 1
+            return True
+
+    def delete_by_namespace(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return (
+                session.execute(  # type: ignore[attr-defined]
+                    delete(Procedure).where(Procedure.namespace == namespace)
+                ).rowcount
+                or 0
+            )

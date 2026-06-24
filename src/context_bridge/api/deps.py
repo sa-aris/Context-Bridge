@@ -22,12 +22,14 @@ from context_bridge.core.vectorstore import build_vector_store
 from context_bridge.core.vectorstore.base import VectorStore
 from context_bridge.core.working import build_working_memory
 from context_bridge.db import (
+    AgentProfileRepository,
     ConflictRepository,
     Database,
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
     ParentRepository,
+    ProcedureRepository,
 )
 
 
@@ -56,6 +58,8 @@ def build_container(settings: Settings) -> Container:
     feedback = FeedbackRepository(db)
     conflicts = ConflictRepository(db)
     graph = GraphRepository(db)
+    agents = AgentProfileRepository(db)
+    procedures = ProcedureRepository(db)
 
     reranker = build_reranker(settings)
     retriever = Retriever(
@@ -84,6 +88,8 @@ def build_container(settings: Settings) -> Container:
         feedback=feedback,
         conflicts=conflicts,
         graph=graph,
+        agents=agents,
+        procedures=procedures,
         graph_extraction=settings.graph_extraction,
         contradiction_similarity=settings.contradiction_similarity,
     )
