@@ -53,14 +53,14 @@ git push origin v0.1.0
 ```
 
 The `Release` workflow builds the sdist/wheel and creates a GitHub Release with
-generated notes. To also publish to PyPI, do the one-time setup:
+generated notes, then publishes to PyPI via OIDC **trusted publishing**. One-time
+setup:
 
 1. On PyPI, add a **trusted publisher** for this repo (workflow `release.yml`,
    environment `pypi`) — no token needed.
-2. Create a GitHub Actions **environment** named `pypi`.
-3. Set the repository **variable** `PYPI_ENABLED=true`.
+2. On GitHub, create an **environment** named `pypi` (Settings → Environments).
 
-Until then the PyPI job is skipped, so tagging still cuts a clean GitHub Release.
+Then tagging a version cuts the release and publishes automatically.
 
 ## Reporting bugs / requesting features
 
