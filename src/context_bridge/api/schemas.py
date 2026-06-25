@@ -248,6 +248,29 @@ class QualityResponse(BaseModel):
     agents: int
 
 
+class AutoResolveResponse(BaseModel):
+    resolved: int
+    skipped: int
+
+
+class HealthPanelResponse(BaseModel):
+    namespace: str
+    memories: int
+    trust: dict
+    avg_confidence: float
+    writes: int
+    queries: int
+    open_conflicts: int
+    lessons: int
+    agents: int
+    quality_score: float
+
+
+class BeliefTimelineResponse(BaseModel):
+    query: str
+    events: list[dict]
+
+
 class OutcomeRequest(BaseModel):
     session_id: str
     namespace: str = "default"

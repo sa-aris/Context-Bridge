@@ -138,6 +138,7 @@ class Settings(BaseSettings):
     belief_revision: bool = True
     conflict_loser_decay: float = 0.5  # multiply the loser's confidence on resolve
     confidence_weight: float = 0.5  # how strongly recall demotes low-confidence memories
+    auto_resolve_min_gap: float = 0.3  # authority gap needed to auto-close a conflict
 
 
 @lru_cache

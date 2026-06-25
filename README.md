@@ -186,6 +186,9 @@ The pool doesn't just remember — the *team* gets better over time:
 | 🔄 **Belief revision** | Resolving a contradiction decays the loser's trust; confidence-weighted recall sinks discredited memories and retires repeat losers — the pool *changes its mind* |
 | ⚗️ **Auto lesson distillation** | Cluster memories implicated in failures into auto-drafted lessons, no human in the loop (`POST /v1/lessons/distill`) |
 | 🔎 **Recall explainability** | Every recalled chunk carries per-signal scores and a plain-language *why it was retrieved* (match, feedback, confidence, age) |
+| 🩺 **Memory health panel** | One pulse-check per namespace: volume, trust distribution, conflicts, lessons, quality (`GET /v1/namespaces/{ns}/health`) |
+| ⚖️ **Auto conflict resolution** | Close contradictions automatically when one side decisively leads, leaving ambiguous ones for a human (`POST /v1/conflicts/auto-resolve`) |
+| 🧬 **Belief timeline** | A memory diff: how belief about a topic changed over time — which claim fell out of favour, and when (`GET /v1/namespaces/{ns}/beliefs`) |
 
 ## Install
 
@@ -300,6 +303,7 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/maintenance/sweep` | Delete TTL-expired memories |
 | `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
 | `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |
+| `POST` | `/v1/conflicts/auto-resolve` | Auto-close decisive contradictions (belief revision) |
 | `GET` | `/v1/graph/neighbors` | Traverse the knowledge graph |
 | `POST` | `/v1/graph/aliases` · `/v1/graph/align` | Map an alias · auto-merge entity variants |
 | `GET` | `/v1/agents` | Agent reputation leaderboard |
@@ -309,6 +313,8 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/lessons/distill` | Auto-draft lessons from memories implicated in failures |
 | `POST` | `/v1/preflight` | Pre-task briefing: lessons to avoid + playbooks that worked |
 | `GET` | `/v1/quality` | Collaboration-quality score for a namespace |
+| `GET` | `/v1/namespaces/{ns}/health` | Memory health panel for a namespace |
+| `GET` | `/v1/namespaces/{ns}/beliefs?query=…` | Belief timeline (memory diff) for a topic |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 
 Interactive OpenAPI docs are served at `/docs`.

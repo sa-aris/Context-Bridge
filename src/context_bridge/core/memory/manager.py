@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from context_bridge.core.chunking.base import Chunker
 from context_bridge.core.embeddings.base import Embedder
@@ -48,6 +49,18 @@ _EPISODE_CONTENT_CAP = 2000
 
 # Ranking nudges so the most actionable lessons surface first.
 _SEVERITY_BOOST = {"low": 0.0, "medium": 0.05, "high": 0.1}
+
+# Below this confidence a memory is considered effectively retired (discredited).
+_RETIRED_BELOW = 0.1
+
+
+def _trust_status(confidence: float) -> str:
+    """Classify a memory's standing from its confidence."""
+    if confidence >= 1.0:
+        return "active"
+    if confidence < _RETIRED_BELOW:
+        return "retired"
+    return "demoted"
 
 
 @dataclass(slots=True)
@@ -703,6 +716,114 @@ class MemoryManager:
             "scanned": len(records),
             "clusters": used_clusters,
             "lessons_created": created,
+        }
+
+    def auto_resolve_conflicts(self, *, namespace: str, min_gap: float = 0.3) -> dict:
+        """Close contradictions on their own when the evidence is decisive.
+
+        For each open conflict, the two memories are weighed by an authority
+        score (current trust plus accumulated feedback). When one clearly leads —
+        or its rival has already been deleted — the conflict is resolved in its
+        favour (which decays the loser). Ambiguous cases are left for a human.
+        """
+        if self.cog.conflicts is None:
+            return {"resolved": 0, "skipped": 0}
+        resolved = skipped = 0
+        for conflict in self.cog.conflicts.list(namespace=namespace, status="open"):
+            a = self.store.get(conflict["memory_id_a"])
+            b = self.store.get(conflict["memory_id_b"])
+            if a is None or b is None:
+                # One side is already gone; the survivor wins by default.
+                winner = conflict["memory_id_a"] if a else (conflict["memory_id_b"] if b else None)
+                if winner is None:
+                    skipped += 1
+                    continue
+                self.resolve_conflict(conflict["id"], winner_id=winner)
+                resolved += 1
+                continue
+            scores = self.cog.feedback.scores([a.id, b.id]) if self.cog.feedback is not None else {}
+            auth_a = a.provenance.confidence + 0.1 * math.tanh(scores.get(a.id, 0.0))
+            auth_b = b.provenance.confidence + 0.1 * math.tanh(scores.get(b.id, 0.0))
+            if abs(auth_a - auth_b) < min_gap:
+                skipped += 1
+                continue
+            winner = a.id if auth_a > auth_b else b.id
+            self.resolve_conflict(conflict["id"], winner_id=winner)
+            resolved += 1
+        return {"resolved": resolved, "skipped": skipped}
+
+    def belief_timeline(self, *, query: str, namespace: str, limit: int = 50) -> list[dict]:
+        """Trace how belief about a topic evolved — a memory diff over time.
+
+        Returns the memories related to ``query`` in chronological order, each
+        annotated with its current trust standing (active / demoted / retired),
+        so one can see *which* claim fell out of favour and *when*.
+        """
+        dense = self.embedder.embed_query_dense(query)
+        sparse = self.embedder.embed_query_sparse(query) if self.embedder.supports_sparse else None
+        candidates = self.store.hybrid_search(
+            dense=dense, sparse=sparse, limit=limit, namespace=namespace
+        )
+        events = [
+            {
+                "id": c.id,
+                "date": (
+                    datetime.fromtimestamp(c.provenance.created_at, tz=UTC).isoformat()
+                    if c.provenance.created_at
+                    else None
+                ),
+                "agent_id": c.provenance.agent_id,
+                "content": c.content[:280],
+                "confidence": round(c.provenance.confidence, 4),
+                "status": _trust_status(c.provenance.confidence),
+            }
+            for c in candidates
+        ]
+        events.sort(key=lambda e: e["date"] or "")
+        return events
+
+    def namespace_health(self, *, namespace: str, scan_limit: int = 2000) -> dict:
+        """A single pulse-check of a namespace's shared memory.
+
+        Bundles volume, the trust distribution (active / demoted / retired),
+        open contradictions, lesson count and the collaboration-quality score
+        into one panel, so an operator can see the memory's health at a glance.
+        """
+        active = demoted = retired = total = 0
+        confidence_sum = 0.0
+        cursor: str | None = None
+        remaining = scan_limit
+        while remaining > 0:
+            page = min(256, remaining)
+            chunks, cursor = self.store.list_records(namespace=namespace, limit=page, cursor=cursor)
+            for chunk in chunks:
+                total += 1
+                confidence_sum += chunk.provenance.confidence
+                status = _trust_status(chunk.provenance.confidence)
+                if status == "active":
+                    active += 1
+                elif status == "retired":
+                    retired += 1
+                else:
+                    demoted += 1
+            remaining -= page
+            if not chunks or cursor is None:
+                break
+
+        ep = self.episodes.stats(namespace)
+        return {
+            "namespace": namespace,
+            "memories": total,
+            "trust": {"active": active, "demoted": demoted, "retired": retired},
+            "avg_confidence": round(confidence_sum / total, 4) if total else 0.0,
+            "writes": ep["writes"],
+            "queries": ep["queries"],
+            "open_conflicts": (
+                self.cog.conflicts.count_open(namespace) if self.cog.conflicts else 0
+            ),
+            "lessons": self.cog.lessons.count(namespace) if self.cog.lessons else 0,
+            "agents": self.cog.agents.count(namespace) if self.cog.agents else 0,
+            "quality_score": self.collaboration_quality(namespace=namespace)["score"],
         }
 
     # -- read path --------------------------------------------------------

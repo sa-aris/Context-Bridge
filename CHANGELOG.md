@@ -67,3 +67,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Recall explainability: every recalled chunk now carries per-signal scores
   (match, feedback, confidence, age) and a short human-readable reason for *why*
   it was retrieved.
+- Memory health panel (`GET /v1/namespaces/{ns}/health`): one pulse-check of a
+  namespace — volume, trust distribution (active/demoted/retired), average
+  confidence, open conflicts, lesson and agent counts, and quality score.
+- Auto conflict resolution (`POST /v1/conflicts/auto-resolve`): close
+  contradictions on their own when one memory's authority (trust + feedback)
+  decisively leads, leaving genuinely ambiguous cases for a human.
+- Belief timeline / memory diff (`GET /v1/namespaces/{ns}/beliefs?query=…`):
+  trace how belief about a topic evolved over time, showing which claim fell out
+  of favour and when.

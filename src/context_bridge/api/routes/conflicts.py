@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from context_bridge.api.deps import get_manager
-from context_bridge.api.schemas import ConflictResolveRequest
+from context_bridge.api.schemas import AutoResolveResponse, ConflictResolveRequest
 from context_bridge.api.security import authorize
 from context_bridge.core.memory.manager import MemoryManager
 
@@ -21,6 +21,21 @@ def list_conflicts(
 ) -> dict:
     authorize(request, namespace, "read")
     return {"conflicts": manager.list_conflicts(namespace=namespace, status=status_filter)}
+
+
+@router.post("/auto-resolve", response_model=AutoResolveResponse)
+def auto_resolve(
+    request: Request,
+    namespace: str = Query(default="default"),
+    manager: MemoryManager = Depends(get_manager),
+) -> AutoResolveResponse:
+    """Auto-close contradictions where the evidence is decisive (belief revision)."""
+    authorize(request, namespace, "write")
+    settings = request.app.state.settings
+    result = manager.auto_resolve_conflicts(
+        namespace=namespace, min_gap=settings.auto_resolve_min_gap
+    )
+    return AutoResolveResponse(**result)
 
 
 @router.post("/{conflict_id}/resolve", status_code=status.HTTP_204_NO_CONTENT)
