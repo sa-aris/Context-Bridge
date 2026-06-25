@@ -60,6 +60,24 @@ class QueryRequest(BaseModel):
     with_lessons: bool = True  # raise relevant past-mistake guardrails on recall
 
 
+def _reason_from_signals(signals: dict) -> str:
+    """Render a short, human-readable 'why this was recalled' explanation."""
+    parts: list[str] = []
+    match = signals.get("match")
+    if match is not None:
+        parts.append(f"relevance {match}")
+    feedback = signals.get("feedback")
+    if feedback:
+        parts.append("boosted by past success" if feedback > 0 else "penalised by past failure")
+    confidence = signals.get("confidence")
+    if confidence is not None and confidence < 1.0:
+        parts.append("demoted (low confidence)")
+    age = signals.get("age_days")
+    if age is not None:
+        parts.append("recent" if age <= 1 else f"{age:g}d old")
+    return "; ".join(parts)
+
+
 class ChunkOut(BaseModel):
     id: str
     content: str
@@ -70,6 +88,8 @@ class ChunkOut(BaseModel):
     task_id: str | None = None
     source: str | None = None
     tags: list[str] = Field(default_factory=list)
+    signals: dict = Field(default_factory=dict)
+    reason: str = ""
 
     @classmethod
     def from_chunk(cls, chunk: RetrievedChunk) -> ChunkOut:
@@ -83,6 +103,8 @@ class ChunkOut(BaseModel):
             task_id=chunk.provenance.task_id,
             source=chunk.provenance.source,
             tags=chunk.tags,
+            signals=chunk.signals,
+            reason=_reason_from_signals(chunk.signals),
         )
 
 
@@ -259,6 +281,12 @@ class LessonCreated(BaseModel):
 
 class LessonsResponse(BaseModel):
     lessons: list[dict]
+
+
+class LessonsDistilled(BaseModel):
+    scanned: int
+    clusters: int
+    lessons_created: int
 
 
 class PreflightRequest(BaseModel):

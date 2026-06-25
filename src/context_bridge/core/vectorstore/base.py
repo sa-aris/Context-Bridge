@@ -40,6 +40,10 @@ class VectorStore(Protocol):
         """Fetch a single stored record by id."""
         ...
 
+    def set_confidence(self, record_id: str, confidence: float) -> bool:
+        """Update a stored record's provenance confidence; return whether it existed."""
+        ...
+
     def delete(self, record_ids: list[str]) -> None:
         """Remove records by id."""
         ...

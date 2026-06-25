@@ -167,6 +167,17 @@ class FeedbackRepository:
                     positive += 1
         return {"positive": positive, "total": total}
 
+    def negative(self, *, namespace: str, threshold: float = 0.0, limit: int = 200) -> list[str]:
+        """Return ids of memories with net-negative feedback (implicated in failures)."""
+        stmt = (
+            select(Feedback.memory_id)
+            .where(Feedback.namespace == namespace, Feedback.score < threshold)
+            .order_by(Feedback.score.asc())
+            .limit(limit)
+        )
+        with self.db.session() as session:
+            return list(session.scalars(stmt))
+
 
 class ConflictRepository:
     """Records and resolves detected contradictions (truth-maintenance)."""
@@ -197,6 +208,11 @@ class ConflictRepository:
         stmt = stmt.order_by(Conflict.detected_at.desc())
         with self.db.session() as session:
             return [c.as_dict() for c in session.scalars(stmt)]
+
+    def get(self, conflict_id: str) -> dict | None:
+        with self.db.session() as session:
+            row = session.get(Conflict, conflict_id)
+            return row.as_dict() if row is not None else None
 
     def resolve(self, conflict_id: str, *, winner_id: str | None) -> bool:
         with self.db.session() as session:

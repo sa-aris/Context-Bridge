@@ -71,6 +71,7 @@ def build_container(settings: Settings) -> Container:
         parent_lookup=parents.get_texts,
         feedback_lookup=feedback.scores,
         feedback_weight=settings.feedback_weight,
+        confidence_weight=settings.confidence_weight,
     )
 
     policy = WritePolicy(
@@ -98,6 +99,8 @@ def build_container(settings: Settings) -> Container:
         lessons_enabled=settings.lessons_enabled,
         lessons_top_k=settings.lessons_top_k,
         lessons_min_score=settings.lessons_min_score,
+        belief_revision=settings.belief_revision,
+        conflict_loser_decay=settings.conflict_loser_decay,
     )
     manager = MemoryManager(
         chunker=build_chunker(settings, embedder=embedder),

@@ -68,6 +68,8 @@ class CognitiveServices:
     lessons_enabled: bool = True
     lessons_top_k: int = 3
     lessons_min_score: float = 0.2
+    belief_revision: bool = True
+    conflict_loser_decay: float = 0.5
 
 
 @dataclass(slots=True)
@@ -619,9 +621,89 @@ class MemoryManager:
         return self.cog.conflicts.list(namespace=namespace, status=status)
 
     def resolve_conflict(self, conflict_id: str, *, winner_id: str | None) -> bool:
+        """Resolve a contradiction and, when a winner is named, revise belief.
+
+        Belief revision means the *losing* memory is trusted less: its confidence
+        is decayed so recall demotes it, and repeated losses retire it entirely —
+        the pool changes its mind in light of better information.
+        """
         if self.cog.conflicts is None:
             return False
-        return self.cog.conflicts.resolve(conflict_id, winner_id=winner_id)
+        row = self.cog.conflicts.get(conflict_id)
+        if row is None:
+            return False
+        self.cog.conflicts.resolve(conflict_id, winner_id=winner_id)
+        if winner_id and self.cog.belief_revision:
+            loser_id = row["memory_id_b"] if winner_id == row["memory_id_a"] else row["memory_id_a"]
+            self._decay_confidence(loser_id, namespace=row["namespace"])
+        return True
+
+    def _decay_confidence(self, memory_id: str, *, namespace: str) -> None:
+        """Lower a memory's trust after it loses a contradiction."""
+        chunk = self.store.get(memory_id)
+        if chunk is None:
+            return
+        decayed = chunk.provenance.confidence * self.cog.conflict_loser_decay
+        self.store.set_confidence(memory_id, decayed)
+        # Reinforce the demotion through the feedback channel as well, so the loss
+        # also tells the re-ranker this memory led somewhere wrong.
+        if self.cog.feedback is not None:
+            self.cog.feedback.record(memory_id=memory_id, namespace=namespace, delta=-1.0)
+
+    def distill_lessons(
+        self,
+        *,
+        namespace: str,
+        min_cluster: int,
+        similarity: float,
+        max_items: int = 200,
+    ) -> dict:
+        """Turn recurring failures into lesson drafts, with no human in the loop.
+
+        Memories implicated in failed outcomes (net-negative feedback) are
+        clustered; each recurring cluster becomes a lesson so the same mistake is
+        flagged before it happens again.
+        """
+        if self.cog.lessons is None or self.cog.feedback is None:
+            return {"scanned": 0, "clusters": 0, "lessons_created": 0}
+
+        memory_ids = self.cog.feedback.negative(namespace=namespace, limit=max_items)
+        records = [c for c in (self.store.get(mid) for mid in memory_ids) if c and c.dense]
+        if len(records) < min_cluster:
+            return {"scanned": len(records), "clusters": 0, "lessons_created": 0}
+
+        vectors = [list(r.dense or []) for r in records]
+        groups = cluster_by_similarity(vectors, threshold=similarity)
+
+        created = 0
+        used_clusters = 0
+        for group in groups:
+            if len(group) < min_cluster:
+                continue
+            used_clusters += 1
+            merged = "\n".join(records[i].content for i in group)
+            gist = self.summarizer.summarize(merged, max_sentences=2).strip()
+            if not gist:
+                continue
+            # Skip if a near-identical lesson already exists.
+            if self.relevant_lessons(
+                query=gist, namespace=namespace, top_k=1, min_score=0.9, reinforce=False
+            ):
+                continue
+            severity = "high" if len(group) >= min_cluster * 2 else "medium"
+            self.record_lesson(
+                namespace=namespace,
+                trigger=gist,
+                guidance=f"Recurring failure pattern — review before similar work: {gist}",
+                severity=severity,
+                created_by="auto-distiller",
+            )
+            created += 1
+        return {
+            "scanned": len(records),
+            "clusters": used_clusters,
+            "lessons_created": created,
+        }
 
     # -- read path --------------------------------------------------------
     def query(

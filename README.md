@@ -183,6 +183,9 @@ The pool doesn't just remember — the *team* gets better over time:
 | 📈 **Collaboration-quality score** | One 0-100 metric (`GET /v1/quality`) blends recall hit-rate, feedback positivity and conflict health, so a team can *watch shared memory pay off* |
 | 🧯 **Failure memory** | Capture a lesson from a mistake; the system *proactively raises it as a guardrail* before similar work, so the team stops repeating errors (`/v1/lessons`) |
 | 🧰 **Preflight briefing** | Before a task, get the lessons to avoid **and** the playbooks that worked in one call (`POST /v1/preflight`) |
+| 🔄 **Belief revision** | Resolving a contradiction decays the loser's trust; confidence-weighted recall sinks discredited memories and retires repeat losers — the pool *changes its mind* |
+| ⚗️ **Auto lesson distillation** | Cluster memories implicated in failures into auto-drafted lessons, no human in the loop (`POST /v1/lessons/distill`) |
+| 🔎 **Recall explainability** | Every recalled chunk carries per-signal scores and a plain-language *why it was retrieved* (match, feedback, confidence, age) |
 
 ## Install
 
@@ -303,6 +306,7 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/outcomes` | Credit a session's memories & agents by outcome |
 | `GET` · `POST` | `/v1/procedures` · `…/{id}/outcome` | Playbooks with success tracking |
 | `GET` · `POST` | `/v1/lessons` · `…/{id}/confirm` | Capture / list / confirm lessons from past mistakes |
+| `POST` | `/v1/lessons/distill` | Auto-draft lessons from memories implicated in failures |
 | `POST` | `/v1/preflight` | Pre-task briefing: lessons to avoid + playbooks that worked |
 | `GET` | `/v1/quality` | Collaboration-quality score for a namespace |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |

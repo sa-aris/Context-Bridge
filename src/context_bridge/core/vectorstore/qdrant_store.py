@@ -175,6 +175,22 @@ class QdrantStore:
             return None
         return self._to_chunk(records[0], score=1.0)
 
+    def set_confidence(self, record_id: str, confidence: float) -> bool:
+        """Demote (or restore) a record's trust by rewriting its provenance confidence."""
+        records = self.client.retrieve(
+            collection_name=self.collection, ids=[record_id], with_payload=True
+        )
+        if not records:
+            return False
+        prov = dict((records[0].payload or {}).get("provenance", {}))
+        prov["confidence"] = confidence
+        self.client.set_payload(
+            collection_name=self.collection,
+            payload={"provenance": prov},
+            points=[record_id],
+        )
+        return True
+
     def delete(self, record_ids: list[str]) -> None:
         if not record_ids:
             return

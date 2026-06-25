@@ -8,6 +8,7 @@ from context_bridge.api.deps import get_manager
 from context_bridge.api.schemas import (
     LessonCreated,
     LessonRequest,
+    LessonsDistilled,
     LessonsResponse,
     PreflightRequest,
     PreflightResponse,
@@ -45,6 +46,23 @@ def list_lessons(
     """List a namespace's lessons, most-proven first."""
     authorize(request, namespace, "read")
     return LessonsResponse(lessons=manager.list_lessons(namespace=namespace, limit=limit))
+
+
+@router.post("/lessons/distill", response_model=LessonsDistilled)
+def distill_lessons(
+    request: Request,
+    namespace: str = Query(default="default"),
+    manager: MemoryManager = Depends(get_manager),
+) -> LessonsDistilled:
+    """Cluster memories implicated in failures into auto-drafted lessons."""
+    authorize(request, namespace, "write")
+    settings = request.app.state.settings
+    result = manager.distill_lessons(
+        namespace=namespace,
+        min_cluster=settings.lesson_distill_min_cluster,
+        similarity=settings.lesson_distill_similarity,
+    )
+    return LessonsDistilled(**result)
 
 
 @router.post("/lessons/{lesson_id}/confirm", status_code=status.HTTP_204_NO_CONTENT)

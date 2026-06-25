@@ -106,6 +106,8 @@ class RetrievedChunk:
     tags: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
     dense: list[float] | None = None
+    # Why this chunk was recalled: per-signal contributions for explainability.
+    signals: dict = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -131,6 +133,7 @@ class AssembledContext:
                     "task_id": c.provenance.task_id,
                     "source": c.provenance.source,
                     "score": c.score,
+                    "signals": c.signals,
                 }
             )
         return out

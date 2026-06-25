@@ -47,6 +47,7 @@ class Retriever:
         parent_lookup: ParentLookup | None = None,
         feedback_lookup: FeedbackLookup | None = None,
         feedback_weight: float = 0.0,
+        confidence_weight: float = 0.0,
     ) -> None:
         self.embedder = embedder
         self.store = store
@@ -54,6 +55,7 @@ class Retriever:
         self.parent_lookup = parent_lookup
         self.feedback_lookup = feedback_lookup
         self.feedback_weight = feedback_weight
+        self.confidence_weight = confidence_weight
 
     def retrieve(
         self,
@@ -86,8 +88,14 @@ class Retriever:
             with span("retrieve.rerank", candidates=len(candidates)):
                 candidates = self.reranker.rerank(query, candidates)
 
+        for chunk in candidates:
+            chunk.signals["match"] = round(chunk.score, 4)
+
         if self.feedback_lookup is not None and self.feedback_weight:
             self._apply_feedback(candidates)
+        if self.confidence_weight:
+            self._apply_confidence(candidates)
+        self._annotate_recency(candidates)
 
         with span("retrieve.assemble", top_k=params.top_k, token_budget=params.token_budget):
             selected = mmr_select(candidates, lambda_=params.mmr_lambda, top_k=params.top_k)
@@ -111,7 +119,32 @@ class Retriever:
         for chunk in chunks:
             signal = scores.get(chunk.id)
             if signal:
-                chunk.score += self.feedback_weight * math.tanh(signal)
+                adjustment = self.feedback_weight * math.tanh(signal)
+                chunk.score += adjustment
+                chunk.signals["feedback"] = round(adjustment, 4)
+
+    def _apply_confidence(self, chunks: list[RetrievedChunk]) -> None:
+        """Demote low-confidence memories (e.g. losers of a resolved conflict).
+
+        Confidence is blended in multiplicatively, so a memory whose trust has
+        decayed sinks in the ranking while fully-trusted ones are untouched.
+        """
+        w = self.confidence_weight
+        for chunk in chunks:
+            confidence = chunk.provenance.confidence
+            if confidence >= 1.0:
+                continue
+            factor = (1.0 - w) + w * max(confidence, 0.0)
+            chunk.score *= factor
+            chunk.signals["confidence"] = round(factor, 4)
+
+    @staticmethod
+    def _annotate_recency(chunks: list[RetrievedChunk]) -> None:
+        now = now_ts()
+        for chunk in chunks:
+            ts = chunk.provenance.created_at
+            if ts:
+                chunk.signals["age_days"] = round((now - ts) / 86400.0, 1)
 
     def _hydrate_parents(self, chunks: list[RetrievedChunk]) -> None:
         assert self.parent_lookup is not None

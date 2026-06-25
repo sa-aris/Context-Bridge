@@ -58,3 +58,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   confirmed (`POST /v1/lessons/{id}/confirm`).
 - Preflight briefing (`POST /v1/preflight`): before starting a task, get the
   lessons to avoid and the playbooks that worked, in one call.
+- Belief revision: resolving a contradiction now decays the *losing* memory's
+  confidence, and recall is confidence-weighted, so discredited memories sink and
+  repeated losses retire them — the pool changes its mind given better evidence.
+- Auto lesson distillation (`POST /v1/lessons/distill`): cluster memories
+  implicated in failures (net-negative feedback) into auto-drafted lessons, with
+  no human in the loop.
+- Recall explainability: every recalled chunk now carries per-signal scores
+  (match, feedback, confidence, age) and a short human-readable reason for *why*
+  it was retrieved.

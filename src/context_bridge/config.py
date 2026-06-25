@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     lessons_enabled: bool = True
     lessons_top_k: int = 3
     lessons_min_score: float = 0.20  # min trigger↔query similarity to raise a lesson
+    # Auto-distil lessons by clustering memories implicated in failures
+    lesson_distill_min_cluster: int = 2
+    lesson_distill_similarity: float = 0.83
+
+    # Belief revision — demote memories that lose a contradiction, decay their trust
+    belief_revision: bool = True
+    conflict_loser_decay: float = 0.5  # multiply the loser's confidence on resolve
+    confidence_weight: float = 0.5  # how strongly recall demotes low-confidence memories
 
 
 @lru_cache
