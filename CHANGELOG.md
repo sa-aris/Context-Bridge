@@ -51,3 +51,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Collaboration-quality score: a single composite 0-100 metric per namespace
   (recall hit-rate, feedback positivity, conflict health) at `GET /v1/quality`,
   so a team can watch shared memory pay off over time.
+- Failure memory: capture a lesson from a mistake (`POST /v1/lessons`, or inline
+  with a failed `POST /v1/outcomes`) and have relevant lessons proactively raised
+  as guardrails on top of recall — so the team stops repeating the same errors.
+  Lessons rank by trigger similarity, severity and proven helpfulness, and can be
+  confirmed (`POST /v1/lessons/{id}/confirm`).
+- Preflight briefing (`POST /v1/preflight`): before starting a task, get the
+  lessons to avoid and the playbooks that worked, in one call.

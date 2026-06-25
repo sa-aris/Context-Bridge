@@ -8,6 +8,7 @@ side-effect-explicit so callers can reason about cost.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from context_bridge.core.chunking.base import Chunker
@@ -37,11 +38,16 @@ from context_bridge.db.repository import (
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
+    LessonRepository,
     ParentRepository,
     ProcedureRepository,
 )
+from context_bridge.tokenizer import count_tokens
 
 _EPISODE_CONTENT_CAP = 2000
+
+# Ranking nudges so the most actionable lessons surface first.
+_SEVERITY_BOOST = {"low": 0.0, "medium": 0.05, "high": 0.1}
 
 
 @dataclass(slots=True)
@@ -56,8 +62,12 @@ class CognitiveServices:
     graph: GraphRepository | None = None
     agents: AgentProfileRepository | None = None
     procedures: ProcedureRepository | None = None
+    lessons: LessonRepository | None = None
     graph_extraction: bool = False
     contradiction_similarity: float = 0.8
+    lessons_enabled: bool = True
+    lessons_top_k: int = 3
+    lessons_min_score: float = 0.2
 
 
 @dataclass(slots=True)
@@ -286,12 +296,22 @@ class MemoryManager:
                 )
 
     def record_outcome(
-        self, *, session_id: str, namespace: str, success: bool, weight: float = 1.0
+        self,
+        *,
+        session_id: str,
+        namespace: str,
+        success: bool,
+        weight: float = 1.0,
+        lesson: str | None = None,
+        lesson_trigger: str | None = None,
+        severity: str = "medium",
     ) -> dict:
         """Propagate a task outcome as credit to every memory and agent in the session.
 
         This closes the learning loop: a successful run reinforces the memories it
         produced and the agents that produced them; a failed run does the opposite.
+        When a failure carries a ``lesson``, it is captured as durable failure
+        memory so the same mistake can be flagged before it recurs.
         """
         delta = weight if success else -weight
         memories = 0
@@ -309,7 +329,24 @@ class MemoryManager:
                     namespace=namespace, agent_id=agent_id, delta=delta, useful=success
                 )
                 agents.add(agent_id)
-        return {"memories_credited": memories, "agents_credited": len(agents), "success": success}
+
+        lesson_id: str | None = None
+        if lesson:
+            # The trigger defaults to the lesson itself; supply a distinct trigger
+            # to describe the *situation* a lesson should fire on.
+            lesson_id = self.record_lesson(
+                namespace=namespace,
+                trigger=lesson_trigger or lesson,
+                guidance=lesson,
+                severity=severity,
+                session_id=session_id,
+            )
+        return {
+            "memories_credited": memories,
+            "agents_credited": len(agents),
+            "success": success,
+            "lesson_id": lesson_id,
+        }
 
     def agent_leaderboard(self, *, namespace: str, limit: int = 20) -> list[dict]:
         return self.cog.agents.top(namespace=namespace, limit=limit) if self.cog.agents else []
@@ -445,6 +482,101 @@ class MemoryManager:
             return []
         return self.cog.graph.list_aliases(namespace)
 
+    # -- failure memory (learning from past mistakes) --------------------
+    def record_lesson(
+        self,
+        *,
+        namespace: str,
+        trigger: str,
+        guidance: str,
+        severity: str = "medium",
+        created_by: str | None = None,
+        session_id: str | None = None,
+    ) -> str | None:
+        """Capture a lesson so a past mistake can be flagged before it recurs.
+
+        The ``trigger`` describes the situation the lesson applies to and is
+        embedded for semantic matching; the ``guidance`` is what to do or avoid.
+        """
+        if self.cog.lessons is None:
+            return None
+        severity = severity if severity in _SEVERITY_BOOST else "medium"
+        embedding = self.embedder.embed_query_dense(trigger)
+        return self.cog.lessons.add(
+            namespace=namespace,
+            trigger=trigger,
+            guidance=guidance,
+            embedding=embedding,
+            severity=severity,
+            created_by=created_by,
+            source_session=session_id,
+        )
+
+    def relevant_lessons(
+        self,
+        *,
+        query: str,
+        namespace: str,
+        top_k: int | None = None,
+        min_score: float | None = None,
+        reinforce: bool = True,
+    ) -> list[dict]:
+        """Rank stored lessons by how well they match the situation in ``query``.
+
+        Scoring blends trigger↔query similarity with a small severity and
+        proven-helpfulness boost, so the most actionable warnings rise first.
+        """
+        if self.cog.lessons is None:
+            return []
+        top_k = top_k if top_k is not None else self.cog.lessons_top_k
+        min_score = min_score if min_score is not None else self.cog.lessons_min_score
+        stored = self.cog.lessons.with_embeddings(namespace)
+        if not stored:
+            return []
+
+        q = self.embedder.embed_query_dense(query)
+        scored: list[dict] = []
+        for lesson in stored:
+            embedding = lesson.pop("embedding", [])
+            if not embedding:
+                continue
+            similarity = cosine(q, embedding)
+            if similarity < min_score:
+                continue
+            boost = _SEVERITY_BOOST.get(lesson["severity"], 0.0)
+            boost += 0.05 * math.tanh(lesson["times_helpful"])
+            lesson["relevance"] = round(similarity + boost, 4)
+            scored.append(lesson)
+
+        scored.sort(key=lambda item: item["relevance"], reverse=True)
+        top = scored[:top_k]
+        if reinforce and top:
+            self.cog.lessons.reinforce_seen([item["id"] for item in top])
+        return top
+
+    def confirm_lesson(self, lesson_id: str) -> bool:
+        """Record that a surfaced lesson actually helped, so it ranks higher."""
+        if self.cog.lessons is None:
+            return False
+        return self.cog.lessons.confirm(lesson_id)
+
+    def list_lessons(self, *, namespace: str, limit: int = 100) -> list[dict]:
+        if self.cog.lessons is None:
+            return []
+        return self.cog.lessons.list(namespace=namespace, limit=limit)
+
+    def preflight(self, *, task: str, namespace: str, limit: int = 5) -> dict:
+        """Tell an agent what the collective knows *before* it starts a task.
+
+        Bundles the relevant lessons (mistakes to avoid) with the best-matching
+        procedures (playbooks that worked) into one pre-task briefing.
+        """
+        lessons = self.relevant_lessons(
+            query=task, namespace=namespace, top_k=limit, reinforce=True
+        )
+        procedures = self.list_procedures(namespace=namespace, query=task, limit=limit)
+        return {"task": task, "lessons": lessons, "procedures": procedures}
+
     # -- collaboration quality -------------------------------------------
     def collaboration_quality(self, *, namespace: str) -> dict:
         """A composite 0-100 score of how well agents are working together.
@@ -507,6 +639,7 @@ class MemoryManager:
         include_dates: bool = False,
         since: float | None = None,
         until: float | None = None,
+        with_lessons: bool = True,
     ) -> AssembledContext:
         params = RetrievalParams(
             top_k=top_k or self.defaults.top_k,
@@ -523,6 +656,8 @@ class MemoryManager:
             result = self.retriever.retrieve(
                 query, namespace=namespace, filters=filters, params=params
             )
+        if with_lessons and self.cog.lessons_enabled:
+            self._attach_lessons(result, query=query, namespace=namespace)
         if session_id:
             self.episodes.record(
                 session_id=session_id,
@@ -533,6 +668,18 @@ class MemoryManager:
                 chunk_ids=[c.id for c in result.chunks],
             )
         return result
+
+    def _attach_lessons(self, result: AssembledContext, *, query: str, namespace: str) -> None:
+        """Raise relevant past-mistake guardrails on top of recalled context."""
+        lessons = self.relevant_lessons(query=query, namespace=namespace)
+        if not lessons:
+            return
+        result.lessons = lessons
+        banner_lines = ["[!] Lessons from past mistakes (heed before acting):"]
+        banner_lines += [f"- ({lesson['severity']}) {lesson['guidance']}" for lesson in lessons]
+        banner = "\n".join(banner_lines)
+        result.context = f"{banner}\n\n{result.context}" if result.context else banner
+        result.tokens_used += count_tokens(banner)
 
     # -- maintenance ------------------------------------------------------
     def summarize_session(
@@ -595,6 +742,8 @@ class MemoryManager:
             self.cog.agents.delete_by_namespace(namespace)
         if namespace and self.cog.procedures is not None:
             self.cog.procedures.delete_by_namespace(namespace)
+        if namespace and self.cog.lessons is not None:
+            self.cog.lessons.delete_by_namespace(namespace)
         return {
             "vectors_deleted": vectors,
             "episodes_deleted": episodes,

@@ -253,3 +253,46 @@ class EntityAlias(Base):
     )
 
     __table_args__ = (Index("ix_entity_aliases_namespace", "namespace"),)
+
+
+class Lesson(Base):
+    """A lesson distilled from a past mistake, surfaced before similar work.
+
+    A lesson pairs a ``trigger`` (the situation it applies to, embedded for
+    semantic matching) with ``guidance`` (what to do or avoid). It is *not*
+    ordinary recall: lessons are guardrails the system proactively raises when
+    an agent is about to do something resembling a known failure, so the team
+    stops repeating the same mistakes.
+    """
+
+    __tablename__ = "lessons"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    namespace: Mapped[str] = mapped_column(String(256), nullable=False, default="default")
+    trigger: Mapped[str] = mapped_column(Text, nullable=False)
+    guidance: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, default="medium")
+    embedding: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    times_helpful: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    source_session: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (Index("ix_lessons_namespace", "namespace"),)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "namespace": self.namespace,
+            "trigger": self.trigger,
+            "guidance": self.guidance,
+            "severity": self.severity,
+            "times_seen": self.times_seen,
+            "times_helpful": self.times_helpful,
+            "created_by": self.created_by,
+            "source_session": self.source_session,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

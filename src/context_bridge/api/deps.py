@@ -28,6 +28,7 @@ from context_bridge.db import (
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
+    LessonRepository,
     ParentRepository,
     ProcedureRepository,
 )
@@ -60,6 +61,7 @@ def build_container(settings: Settings) -> Container:
     graph = GraphRepository(db)
     agents = AgentProfileRepository(db)
     procedures = ProcedureRepository(db)
+    lessons = LessonRepository(db)
 
     reranker = build_reranker(settings)
     retriever = Retriever(
@@ -90,8 +92,12 @@ def build_container(settings: Settings) -> Container:
         graph=graph,
         agents=agents,
         procedures=procedures,
+        lessons=lessons,
         graph_extraction=settings.graph_extraction,
         contradiction_similarity=settings.contradiction_similarity,
+        lessons_enabled=settings.lessons_enabled,
+        lessons_top_k=settings.lessons_top_k,
+        lessons_min_score=settings.lessons_min_score,
     )
     manager = MemoryManager(
         chunker=build_chunker(settings, embedder=embedder),

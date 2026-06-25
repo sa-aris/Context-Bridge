@@ -115,6 +115,8 @@ class AssembledContext:
     context: str
     chunks: list[RetrievedChunk]
     tokens_used: int
+    # Guardrails raised from past mistakes relevant to this query (see Lesson).
+    lessons: list[dict] = field(default_factory=list)
 
     @property
     def sources(self) -> list[dict]:

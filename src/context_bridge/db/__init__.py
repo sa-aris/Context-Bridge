@@ -11,6 +11,7 @@ from context_bridge.db.models import (
     Feedback,
     GraphEdge,
     GraphNode,
+    Lesson,
     ParentDocument,
     Procedure,
 )
@@ -20,6 +21,7 @@ from context_bridge.db.repository import (
     EpisodeRepository,
     FeedbackRepository,
     GraphRepository,
+    LessonRepository,
     ParentRepository,
     ProcedureRepository,
 )
@@ -36,6 +38,7 @@ __all__ = [
     "AgentProfile",
     "Procedure",
     "EntityAlias",
+    "Lesson",
     "EpisodeRepository",
     "ParentRepository",
     "FeedbackRepository",
@@ -43,5 +46,6 @@ __all__ = [
     "GraphRepository",
     "AgentProfileRepository",
     "ProcedureRepository",
+    "LessonRepository",
     "Database",
 ]

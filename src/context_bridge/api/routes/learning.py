@@ -43,6 +43,9 @@ def record_outcome(
         namespace=req.namespace,
         success=req.success,
         weight=req.weight,
+        lesson=req.lesson,
+        lesson_trigger=req.lesson_trigger,
+        severity=req.severity,
     )
     return OutcomeResponse(**result)
 

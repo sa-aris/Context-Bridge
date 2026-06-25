@@ -16,6 +16,7 @@ from context_bridge.db.models import (
     Feedback,
     GraphEdge,
     GraphNode,
+    Lesson,
     ParentDocument,
     Procedure,
 )
@@ -518,3 +519,93 @@ class ProcedureRepository:
                 ).rowcount
                 or 0
             )
+
+
+class LessonRepository:
+    """Durable lessons distilled from past mistakes (failure memory)."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def add(
+        self,
+        *,
+        namespace: str,
+        trigger: str,
+        guidance: str,
+        embedding: list[float],
+        severity: str = "medium",
+        created_by: str | None = None,
+        source_session: str | None = None,
+    ) -> str:
+        lesson_id = new_id()
+        with self.db.session() as session:
+            session.add(
+                Lesson(
+                    id=lesson_id,
+                    namespace=namespace,
+                    trigger=trigger,
+                    guidance=guidance,
+                    embedding=list(embedding),
+                    severity=severity,
+                    times_seen=0,
+                    times_helpful=0,
+                    created_by=created_by,
+                    source_session=source_session,
+                )
+            )
+        return lesson_id
+
+    def with_embeddings(self, namespace: str) -> list[dict]:
+        """Return each lesson plus its embedding, for similarity ranking."""
+        stmt = select(Lesson).where(Lesson.namespace == namespace)
+        with self.db.session() as session:
+            out: list[dict] = []
+            for lesson in session.scalars(stmt):
+                row = lesson.as_dict()
+                row["embedding"] = list(lesson.embedding or [])
+                out.append(row)
+            return out
+
+    def reinforce_seen(self, lesson_ids: list[str]) -> None:
+        if not lesson_ids:
+            return
+        with self.db.session() as session:
+            for row in session.scalars(select(Lesson).where(Lesson.id.in_(set(lesson_ids)))):
+                row.times_seen += 1
+
+    def confirm(self, lesson_id: str) -> bool:
+        with self.db.session() as session:
+            row = session.get(Lesson, lesson_id)
+            if row is None:
+                return False
+            row.times_helpful += 1
+            return True
+
+    def count(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return int(
+                session.scalar(
+                    select(func.count()).select_from(Lesson).where(Lesson.namespace == namespace)
+                )
+                or 0
+            )
+
+    def delete_by_namespace(self, namespace: str) -> int:
+        with self.db.session() as session:
+            return (
+                session.execute(  # type: ignore[attr-defined]
+                    delete(Lesson).where(Lesson.namespace == namespace)
+                ).rowcount
+                or 0
+            )
+
+    def list(self, *, namespace: str, limit: int = 100) -> list[dict]:
+        stmt = (
+            select(Lesson)
+            .where(Lesson.namespace == namespace)
+            .order_by(Lesson.times_helpful.desc(), Lesson.created_at.desc())
+            .limit(limit)
+        )
+        with self.db.session() as session:
+            return [lesson.as_dict() for lesson in session.scalars(stmt)]

@@ -126,6 +126,11 @@ class Settings(BaseSettings):
     contradiction_similarity: float = 0.80
     graph_extraction: bool = False
 
+    # Failure memory — proactively surface lessons from past mistakes on recall
+    lessons_enabled: bool = True
+    lessons_top_k: int = 3
+    lessons_min_score: float = 0.20  # min trigger↔query similarity to raise a lesson
+
 
 @lru_cache
 def get_settings() -> Settings:

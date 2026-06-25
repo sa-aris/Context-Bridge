@@ -181,6 +181,8 @@ The pool doesn't just remember — the *team* gets better over time:
 | 📅 **Temporal recall** | Memories carry dates; recall with `include_dates` and `since`/`until` — remembers *when*, human-like |
 | 🧭 **Ontology alignment** | Agents that named the same entity differently converge on one canonical name — auto (`POST /v1/graph/align`) or by alias (`POST /v1/graph/aliases`) |
 | 📈 **Collaboration-quality score** | One 0-100 metric (`GET /v1/quality`) blends recall hit-rate, feedback positivity and conflict health, so a team can *watch shared memory pay off* |
+| 🧯 **Failure memory** | Capture a lesson from a mistake; the system *proactively raises it as a guardrail* before similar work, so the team stops repeating errors (`/v1/lessons`) |
+| 🧰 **Preflight briefing** | Before a task, get the lessons to avoid **and** the playbooks that worked in one call (`POST /v1/preflight`) |
 
 ## Install
 
@@ -300,6 +302,8 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `GET` | `/v1/agents` | Agent reputation leaderboard |
 | `POST` | `/v1/outcomes` | Credit a session's memories & agents by outcome |
 | `GET` · `POST` | `/v1/procedures` · `…/{id}/outcome` | Playbooks with success tracking |
+| `GET` · `POST` | `/v1/lessons` · `…/{id}/confirm` | Capture / list / confirm lessons from past mistakes |
+| `POST` | `/v1/preflight` | Pre-task briefing: lessons to avoid + playbooks that worked |
 | `GET` | `/v1/quality` | Collaboration-quality score for a namespace |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 

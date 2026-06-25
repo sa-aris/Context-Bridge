@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from context_bridge.core.models import AssembledContext, RetrievedChunk
@@ -55,6 +57,7 @@ class QueryRequest(BaseModel):
     include_dates: bool = False
     since: float | None = None  # epoch seconds; only recall memories at/after this
     until: float | None = None  # epoch seconds; only recall memories at/before this
+    with_lessons: bool = True  # raise relevant past-mistake guardrails on recall
 
 
 class ChunkOut(BaseModel):
@@ -88,6 +91,7 @@ class QueryResponse(BaseModel):
     tokens_used: int
     chunks: list[ChunkOut]
     sources: list[dict]
+    lessons: list[dict] = Field(default_factory=list)
 
     @classmethod
     def from_assembled(cls, assembled: AssembledContext) -> QueryResponse:
@@ -96,6 +100,7 @@ class QueryResponse(BaseModel):
             tokens_used=assembled.tokens_used,
             chunks=[ChunkOut.from_chunk(c) for c in assembled.chunks],
             sources=assembled.sources,
+            lessons=assembled.lessons,
         )
 
 
@@ -226,12 +231,46 @@ class OutcomeRequest(BaseModel):
     namespace: str = "default"
     success: bool
     weight: float = Field(default=1.0, gt=0, le=10)
+    # Optionally capture a lesson learned from this outcome (typically a failure).
+    lesson: str | None = Field(default=None, max_length=MAX_CONTENT_CHARS)
+    lesson_trigger: str | None = Field(default=None, max_length=MAX_QUERY_CHARS)
+    severity: Literal["low", "medium", "high"] = "medium"
 
 
 class OutcomeResponse(BaseModel):
     memories_credited: int
     agents_credited: int
     success: bool
+    lesson_id: str | None = None
+
+
+class LessonRequest(BaseModel):
+    namespace: str = "default"
+    trigger: str = Field(..., min_length=1, max_length=MAX_QUERY_CHARS)
+    guidance: str = Field(..., min_length=1, max_length=MAX_CONTENT_CHARS)
+    severity: Literal["low", "medium", "high"] = "medium"
+    created_by: str | None = None
+    session_id: str | None = None
+
+
+class LessonCreated(BaseModel):
+    id: str
+
+
+class LessonsResponse(BaseModel):
+    lessons: list[dict]
+
+
+class PreflightRequest(BaseModel):
+    task: str = Field(..., min_length=1, max_length=MAX_QUERY_CHARS)
+    namespace: str = "default"
+    limit: int = Field(default=5, ge=1, le=50)
+
+
+class PreflightResponse(BaseModel):
+    task: str
+    lessons: list[dict]
+    procedures: list[dict]
 
 
 class AgentsResponse(BaseModel):

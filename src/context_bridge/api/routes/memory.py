@@ -88,6 +88,7 @@ def query_memory(
         include_dates=req.include_dates,
         since=req.since,
         until=req.until,
+        with_lessons=req.with_lessons,
     )
     metrics.QUERIES.inc()
     metrics.QUERY_TOKENS.observe(assembled.tokens_used)
