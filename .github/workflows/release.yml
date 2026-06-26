@@ -42,19 +42,12 @@ jobs:
         with:
           name: dist
           path: dist/
-      - name: Prepare release body
-        run: |
-          {
-            echo '![demo](https://raw.githubusercontent.com/sa-aris/Context-Bridge/main/docs/assets/demo.gif)'
-            echo
-            sed '/<!--/,/-->/d' RELEASE_NOTES_v0.1.0.md
-          } > body.md
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0
           name: Context Bridge 0.1.0
-          body_path: body.md
+          body_path: .github/release-body.md
           make_latest: true
           files: |
             dist/*

@@ -1,15 +1,4 @@
-<!--
-  ─────────────────────────────────────────────────────────────────────────
-  GitHub Release oluştururken:
-    • Tag    : v0.1.0   ("Create new tag: v0.1.0 on publish")
-    • Title  : Context Bridge 0.1.0
-    • Description : AŞAĞIDAKİ ÇİZGİNİN ALTINDAKİ HER ŞEYİ kopyalayıp yapıştır.
-    • GIF    : zorunlu değil — demo GIF zaten README'de görünüyor. Eklemek
-               istersen (repo public ise) açıklamanın en üstüne şu satırı koy:
-               ![demo](https://raw.githubusercontent.com/sa-aris/Context-Bridge/main/docs/assets/demo.gif)
-  Bu yorum satırlarını (<!-- ... -->) kopyalamana gerek yok.
-  ─────────────────────────────────────────────────────────────────────────
--->
+![demo](https://raw.githubusercontent.com/sa-aris/Context-Bridge/main/docs/assets/demo.gif)
 
 **Context Bridge** is shared neural memory middleware for multi-agent systems —
 agents write into one governed pool and recall only the task-scoped,
