@@ -42,11 +42,14 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Resolve version
+        id: ver
+        run: echo "version=$(grep -m1 '^version' pyproject.toml | cut -d'\"' -f2)" >> "$GITHUB_OUTPUT"
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
-          name: Context Bridge 0.1.0
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Context Bridge ${{ steps.ver.outputs.version }}
           body_path: .github/release-body.md
           make_latest: true
           files: |

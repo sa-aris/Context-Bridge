@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-26
+
+### Changed
+
+- README demo references the animated GIF by absolute URL so it renders on PyPI
+  and other registries, not just on GitHub.
+
 ## [0.1.0] - 2026-06-26
 
 ### Added
