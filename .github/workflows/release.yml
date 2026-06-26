@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -30,6 +31,8 @@ jobs:
 
   github-release:
     needs: build
+    # Only when triggered by a version tag; a manual run just builds & publishes.
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
