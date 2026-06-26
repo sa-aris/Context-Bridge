@@ -44,7 +44,15 @@ jobs:
           path: dist/
       - name: Resolve version
         id: ver
-        run: echo "version=$(grep -m1 '^version' pyproject.toml | cut -d'\"' -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          v=$(grep -m1 '^version' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Remove stale 'v' tag/release if present
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete v --repo "$GITHUB_REPOSITORY" --yes || true
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/v" || true
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
