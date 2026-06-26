@@ -33,21 +33,32 @@ jobs:
 
   github-release:
     needs: build
-    # Only when triggered by a version tag; a manual run just builds & publishes.
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
+      - name: Prepare release body
+        run: |
+          {
+            echo '![demo](https://raw.githubusercontent.com/sa-aris/Context-Bridge/main/docs/assets/demo.gif)'
+            echo
+            sed '/<!--/,/-->/d' RELEASE_NOTES_v0.1.0.md
+          } > body.md
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          generate_release_notes: true
+          tag_name: v0.1.0
+          name: Context Bridge 0.1.0
+          body_path: body.md
+          make_latest: true
+          files: |
+            dist/*
+            docs/assets/demo.gif
 
   pypi-publish:
     needs: build
@@ -64,3 +75,5 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
