@@ -1,31 +1,76 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="452" viewBox="0 0 900 452" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13.5">
-  <rect width="900" height="452" rx="10" fill="#0d1117"/>
-  <rect width="900" height="34" rx="10" fill="#161b22"/>
-  <rect y="24" width="900" height="10" fill="#161b22"/>
-  <circle cx="20" cy="17" r="6" fill="#ff5f56"/>
-  <circle cx="40" cy="17" r="6" fill="#ffbd2e"/>
-  <circle cx="60" cy="17" r="6" fill="#27c93f"/>
-  <text x="450" y="22" text-anchor="middle" fill="#8b949e">context bridge — quickstart</text>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="terminal" baseProfile="full" viewBox="0 0 879 523" width="879" version="1.1">
+    <defs>
+        <termtosvg:template_settings xmlns:termtosvg="https://github.com/nbedos/termtosvg">
+            <termtosvg:screen_geometry columns="104" rows="26"/>
+            <termtosvg:animation type="css"/>
+        </termtosvg:template_settings>
+        <style type="text/css" id="generated-style"><![CDATA[#screen {
+                font-family: 'DejaVu Sans Mono', monospace;
+                font-style: normal;
+                font-size: 14px;
+            }
 
-  <text x="24" y="64" fill="#8b949e">$ <tspan fill="#c9d1d9">python examples/quickstart.py</tspan></text>
+        text {
+            dominant-baseline: text-before-edge;
+            white-space: pre;
+        }
+    
+            :root {
+                --animation-duration: 7489ms;
+            }
 
-  <text x="24" y="96" fill="#56d4dd" font-weight="bold">── Three agents write into one shared pool</text>
-  <text x="24" y="116" fill="#7d8590">wrote 3 memories  ·  billing-agent, ops-agent, api-agent</text>
+            @keyframes roll {
+                0.000%{transform:translateY(0px)}
+13.366%{transform:translateY(-476px)}
+26.465%{transform:translateY(-952px)}
+35.158%{transform:translateY(-1428px)}
+42.035%{transform:translateY(-1904px)}
+42.062%{transform:translateY(-2380px)}
+48.738%{transform:translateY(-2856px)}
+55.415%{transform:translateY(-3332px)}
+64.107%{transform:translateY(-3808px)}
+71.078%{transform:translateY(-4284px)}
+71.118%{transform:translateY(-4760px)}
+79.797%{transform:translateY(-5236px)}
+86.647%{transform:translateY(-5712px)}
+100.000%{transform:translateY(-5712px)}
+            }
 
-  <text x="24" y="148" fill="#56d4dd" font-weight="bold">── A fourth agent recalls — only what the task needs</text>
-  <text x="24" y="170"><tspan fill="#3fb950">  ✓ </tspan><tspan fill="#8b949e">[billing-agent] </tspan><tspan fill="#e6edf3">The payment service uses Stripe and retries failed charges three times.</tspan></text>
-  <text x="24" y="188" fill="#6e7681">        why: match 0.0328, recent</text>
-  <text x="24" y="210"><tspan fill="#3fb950">  ✓ </tspan><tspan fill="#8b949e">[api-agent] </tspan><tspan fill="#e6edf3">Checkout calls the payment service synchronously with a 5s timeout.</tspan></text>
-  <text x="24" y="228" fill="#6e7681">        why: match 0.0323, recent</text>
-  <text x="24" y="250" fill="#e6edf3">  tokens_used: <tspan fill="#d2a8ff">28</tspan> (budget 256)</text>
-  <text x="24" y="268" fill="#6e7681">  the coffee-machine note ranked last and was left out — recall stays relevant</text>
-
-  <text x="24" y="300" fill="#56d4dd" font-weight="bold">── Learn from a mistake, then brief the next agent before it starts</text>
-  <text x="24" y="322"><tspan fill="#d29922">  ⚠ (high) </tspan><tspan fill="#e6edf3">raise checkout's 5s timeout first, or synchronous calls will fail</tspan></text>
-
-  <text x="24" y="354" fill="#56d4dd" font-weight="bold">── Close the loop, then read the namespace's pulse</text>
-  <text x="24" y="376" fill="#e6edf3">  collaboration quality: <tspan fill="#3fb950" font-weight="bold">100.0/100</tspan></text>
-  <text x="24" y="394" fill="#6e7681">  hit_rate 1.0  ·  feedback_positivity 1.0  ·  open_conflicts 0</text>
-
-  <text x="24" y="428" fill="#3fb950" font-weight="bold">  ✓ shared, governed, explainable memory — all in-process</text>
+            #screen_view {
+                animation-duration: 7489ms;
+                animation-iteration-count:infinite;
+                animation-name:roll;
+                animation-timing-function: steps(1,end);
+                animation-fill-mode: forwards;
+            }
+        ]]></style>
+        <style type="text/css" id="user-style">
+            /* The colors defined below are the default 16 colors used for rendering text of the terminal. Adjust
+               them as needed.
+               gjm8 color theme (source: https://terminal.sexy/) */
+            .foreground {fill: #f8f8f2}
+            .background {fill: #272822}
+            .color0 {fill: #272822}
+            .color1 {fill: #f92672}
+            .color2 {fill: #a6e22e}
+            .color3 {fill: #f4bf75}
+            .color4 {fill: #66d9ef}
+            .color5 {fill: #ae81ff}
+            .color6 {fill: #a1efe4}
+            .color7 {fill: #f8f8f2}
+            .color8 {fill: #75715e}
+            .color9 {fill: #fd971f}
+            .color10 {fill: #383830}
+            .color11 {fill: #49483e}
+            .color12 {fill: #a59f85}
+            .color13 {fill: #f5f4f1}
+            .color14 {fill: #cc6633}
+            .color15 {fill: #f9f8f5}
+        </style>
+    </defs>
+    <rect id="terminalui" class="background" width="100%" height="100%" ry="4.5826941"/>
+    <circle cx="24" cy="23" r="7" class="color1"/>
+    <circle cx="44" cy="23" r="7" class="color3"/>
+    <circle cx="64" cy="23" r="7" class="color2"/>
+    <svg id="screen" width="832" height="442" x="23" y="50" viewBox="0 0 832 442" preserveAspectRatio="xMidYMin slice"><rect class="background" height="100%" width="100%" x="0" y="0"/><defs><g id="g1"><text x="0" textLength="832" class="foreground">/home/user/Context-Bridge/.venv/lib/python3.11/site-packages/huggingface_hub/utils/tqdm.py:175: UserWarn</text></g><g id="g2"><text x="0" textLength="832" class="foreground">ing: Cannot enable progress bars: environment variable `HF_HUB_DISABLE_PROGRESS_BARS=1` is set and has p</text></g><g id="g3"><text x="0" textLength="64" class="foreground">riority.</text></g><g id="g4"><text x="0" textLength="128" class="foreground">  warnings.warn(</text></g><g id="g5"><text x="0" textLength="8" class="background"> </text></g><g id="g6"><text x="0" textLength="344" font-weight="bold" class="color14">&#9472;&#9472; Three agents write into one shared pool </text><text x="344" textLength="152" class="foreground">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</text></g><g id="g7"><text x="0" textLength="448" class="foreground">wrote 3 memories  &#183;  billing-agent, ops-agent, api-agent</text></g><g id="g8"><text x="0" textLength="424" font-weight="bold" class="color14">&#9472;&#9472; A fourth agent recalls &#8212; only what the task needs </text><text x="424" textLength="72" class="foreground">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</text></g><g id="g9"><text x="0" textLength="728" class="foreground">  &#10003; [billing-agent] The payment service uses Stripe and retries failed charges three times.</text><text x="728" textLength="8" class="background"> </text></g><g id="g10"><text x="0" textLength="728" class="foreground">  &#10003; [billing-agent] The payment service uses Stripe and retries failed charges three times.</text></g><g id="g11"><text x="0" textLength="248" class="foreground">      why: match 0.0328, recent</text></g><g id="g12"><text x="0" textLength="696" class="foreground">  &#10003; [    api-agent] Checkout calls the payment service synchronously with a 5s timeout.</text></g><g id="g13"><text x="0" textLength="248" class="foreground">      why: match 0.0323, recent</text></g><g id="g14"><text x="0" textLength="240" class="foreground">  tokens_used: 28 (budget 256)</text></g><g id="g15"><text x="0" textLength="624" class="foreground">  the coffee-machine note ranked last and was left out &#8212; recall stays relevant</text></g><g id="g16"><text x="0" textLength="544" font-weight="bold" class="color14">&#9472;&#9472; Learn from a mistake, then brief the next agent before it starts </text></g><g id="g17"><text x="0" textLength="608" class="foreground">  &#9888; (high) raise checkout's 5s timeout first, or synchronous calls will fail</text><text x="608" textLength="8" class="background"> </text></g><g id="g18"><text x="0" textLength="608" class="foreground">  &#9888; (high) raise checkout's 5s timeout first, or synchronous calls will fail</text></g><g id="g19"><text x="0" textLength="408" font-weight="bold" class="color14">&#9472;&#9472; Close the loop, then read the namespace's pulse </text><text x="408" textLength="88" class="foreground">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</text></g><g id="g20"><text x="0" textLength="272" class="foreground">  collaboration quality: 100.0/100</text></g><g id="g21"><text x="0" textLength="504" class="foreground">  hit_rate 1.0  &#183;  feedback_positivity 1.0  &#183;  open_conflicts 0</text></g><g id="g22"><text x="0" textLength="440" font-weight="bold" class="color10">&#10003; shared, governed, explainable memory &#8212; all in-process</text></g></defs><g id="screen_view"><g><use xlink:href="#g1" y="0"/><use xlink:href="#g2" y="17"/><use xlink:href="#g3" y="34"/><use xlink:href="#g4" y="51"/><rect x="0" y="68" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="68"/></g><g><use xlink:href="#g1" y="476"/><use xlink:href="#g2" y="493"/><use xlink:href="#g3" y="510"/><use xlink:href="#g4" y="527"/><use xlink:href="#g6" y="561"/><rect x="0" y="578" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="578"/></g><g><use xlink:href="#g1" y="952"/><use xlink:href="#g2" y="969"/><use xlink:href="#g3" y="986"/><use xlink:href="#g4" y="1003"/><use xlink:href="#g6" y="1037"/><use xlink:href="#g7" y="1054"/><rect x="0" y="1071" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="1071"/></g><g><use xlink:href="#g1" y="1428"/><use xlink:href="#g2" y="1445"/><use xlink:href="#g3" y="1462"/><use xlink:href="#g4" y="1479"/><use xlink:href="#g6" y="1513"/><use xlink:href="#g7" y="1530"/><use xlink:href="#g8" y="1564"/><rect x="0" y="1581" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="1581"/></g><g><use xlink:href="#g1" y="1904"/><use xlink:href="#g2" y="1921"/><use xlink:href="#g3" y="1938"/><use xlink:href="#g4" y="1955"/><use xlink:href="#g6" y="1989"/><use xlink:href="#g7" y="2006"/><use xlink:href="#g8" y="2040"/><rect x="728" y="2057" width="8" height="17" class="foreground"/><use xlink:href="#g9" y="2057"/></g><g><use xlink:href="#g1" y="2380"/><use xlink:href="#g2" y="2397"/><use xlink:href="#g3" y="2414"/><use xlink:href="#g4" y="2431"/><use xlink:href="#g6" y="2465"/><use xlink:href="#g7" y="2482"/><use xlink:href="#g8" y="2516"/><use xlink:href="#g10" y="2533"/><use xlink:href="#g11" y="2550"/><rect x="0" y="2567" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="2567"/></g><g><use xlink:href="#g1" y="2856"/><use xlink:href="#g2" y="2873"/><use xlink:href="#g3" y="2890"/><use xlink:href="#g4" y="2907"/><use xlink:href="#g6" y="2941"/><use xlink:href="#g7" y="2958"/><use xlink:href="#g8" y="2992"/><use xlink:href="#g10" y="3009"/><use xlink:href="#g11" y="3026"/><use xlink:href="#g12" y="3043"/><use xlink:href="#g13" y="3060"/><rect x="0" y="3077" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="3077"/></g><g><use xlink:href="#g1" y="3332"/><use xlink:href="#g2" y="3349"/><use xlink:href="#g3" y="3366"/><use xlink:href="#g4" y="3383"/><use xlink:href="#g6" y="3417"/><use xlink:href="#g7" y="3434"/><use xlink:href="#g8" y="3468"/><use xlink:href="#g10" y="3485"/><use xlink:href="#g11" y="3502"/><use xlink:href="#g12" y="3519"/><use xlink:href="#g13" y="3536"/><use xlink:href="#g14" y="3553"/><use xlink:href="#g15" y="3570"/><rect x="0" y="3587" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="3587"/></g><g><use xlink:href="#g1" y="3808"/><use xlink:href="#g2" y="3825"/><use xlink:href="#g3" y="3842"/><use xlink:href="#g4" y="3859"/><use xlink:href="#g6" y="3893"/><use xlink:href="#g7" y="3910"/><use xlink:href="#g8" y="3944"/><use xlink:href="#g10" y="3961"/><use xlink:href="#g11" y="3978"/><use xlink:href="#g12" y="3995"/><use xlink:href="#g13" y="4012"/><use xlink:href="#g14" y="4029"/><use xlink:href="#g15" y="4046"/><use xlink:href="#g16" y="4080"/><rect x="0" y="4097" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="4097"/></g><g><use xlink:href="#g1" y="4284"/><use xlink:href="#g2" y="4301"/><use xlink:href="#g3" y="4318"/><use xlink:href="#g4" y="4335"/><use xlink:href="#g6" y="4369"/><use xlink:href="#g7" y="4386"/><use xlink:href="#g8" y="4420"/><use xlink:href="#g10" y="4437"/><use xlink:href="#g11" y="4454"/><use xlink:href="#g12" y="4471"/><use xlink:href="#g13" y="4488"/><use xlink:href="#g14" y="4505"/><use xlink:href="#g15" y="4522"/><use xlink:href="#g16" y="4556"/><rect x="608" y="4573" width="8" height="17" class="foreground"/><use xlink:href="#g17" y="4573"/></g><g><use xlink:href="#g1" y="4760"/><use xlink:href="#g2" y="4777"/><use xlink:href="#g3" y="4794"/><use xlink:href="#g4" y="4811"/><use xlink:href="#g6" y="4845"/><use xlink:href="#g7" y="4862"/><use xlink:href="#g8" y="4896"/><use xlink:href="#g10" y="4913"/><use xlink:href="#g11" y="4930"/><use xlink:href="#g12" y="4947"/><use xlink:href="#g13" y="4964"/><use xlink:href="#g14" y="4981"/><use xlink:href="#g15" y="4998"/><use xlink:href="#g16" y="5032"/><use xlink:href="#g18" y="5049"/><rect x="0" y="5066" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="5066"/></g><g><use xlink:href="#g1" y="5236"/><use xlink:href="#g2" y="5253"/><use xlink:href="#g3" y="5270"/><use xlink:href="#g4" y="5287"/><use xlink:href="#g6" y="5321"/><use xlink:href="#g7" y="5338"/><use xlink:href="#g8" y="5372"/><use xlink:href="#g10" y="5389"/><use xlink:href="#g11" y="5406"/><use xlink:href="#g12" y="5423"/><use xlink:href="#g13" y="5440"/><use xlink:href="#g14" y="5457"/><use xlink:href="#g15" y="5474"/><use xlink:href="#g16" y="5508"/><use xlink:href="#g18" y="5525"/><use xlink:href="#g19" y="5559"/><rect x="0" y="5576" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="5576"/></g><g><use xlink:href="#g1" y="5712"/><use xlink:href="#g2" y="5729"/><use xlink:href="#g3" y="5746"/><use xlink:href="#g4" y="5763"/><use xlink:href="#g6" y="5797"/><use xlink:href="#g7" y="5814"/><use xlink:href="#g8" y="5848"/><use xlink:href="#g10" y="5865"/><use xlink:href="#g11" y="5882"/><use xlink:href="#g12" y="5899"/><use xlink:href="#g13" y="5916"/><use xlink:href="#g14" y="5933"/><use xlink:href="#g15" y="5950"/><use xlink:href="#g16" y="5984"/><use xlink:href="#g18" y="6001"/><use xlink:href="#g19" y="6035"/><use xlink:href="#g20" y="6052"/><use xlink:href="#g21" y="6069"/><use xlink:href="#g22" y="6103"/><rect x="0" y="6120" width="8" height="17" class="foreground"/><use xlink:href="#g5" y="6120"/></g></g></svg>
 </svg>

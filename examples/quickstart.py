@@ -12,14 +12,28 @@ score. No external services required.
 
 from __future__ import annotations
 
+import os
+import time
+
 from context_bridge.api.deps import build_container
 from context_bridge.config import Settings
 
 NS = "project-x"
 
+# Optional cinematic pacing, used only when recording the demo animation.
+# Real runs (CB_DEMO_DELAY unset) print instantly.
+_DELAY = float(os.environ.get("CB_DEMO_DELAY", "0"))
+
+
+def _pause(factor: float = 1.0) -> None:
+    if _DELAY:
+        time.sleep(_DELAY * factor)
+
 
 def _rule(title: str) -> None:
+    _pause(1.3)
     print(f"\n\033[1;36m── {title} \033[0m" + "─" * max(0, 58 - len(title)))
+    _pause()
 
 
 def main() -> None:
@@ -65,6 +79,7 @@ def main() -> None:
     for chunk in result.chunks:
         print(f"  ✓ [{chunk.provenance.agent_id:>13}] {chunk.content}")
         print(f"      why: {_reason(chunk.signals)}")
+        _pause()
     print(f"  tokens_used: {result.tokens_used} (budget 256)")
     print("  the coffee-machine note ranked last and was left out — recall stays relevant")
 
