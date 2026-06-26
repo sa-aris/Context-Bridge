@@ -206,7 +206,7 @@ pip install "context-bridge-memory[fastembed,redis,postgres]"   # full local sta
 From source (for development):
 
 ```bash
-git clone https://github.com/sa-aris/Context-Bridge && cd Context-Bridge
+git clone https://github.com/sa-aris/context-bridge && cd context-bridge
 uv pip install -e ".[dev]"
 ```
 
