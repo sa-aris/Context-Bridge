@@ -1,8 +1,10 @@
 name: Release
 
 on:
+  # Cut a release by bumping the version and touching `.release-trigger`.
   push:
-    tags: ["v*"]
+    branches: ["main"]
+    paths: [".release-trigger"]
   workflow_dispatch: {}
 
 permissions:
