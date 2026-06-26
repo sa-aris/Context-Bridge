@@ -53,6 +53,23 @@ jobs:
         run: |
           gh release delete v --repo "$GITHUB_REPOSITORY" --yes || true
           gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/v" || true
+      - name: Set repo description, homepage and topics
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api -X PATCH "repos/$GITHUB_REPOSITORY" \
+               -f description='Shared neural memory for multi-agent LLM systems — agents write to one governed pool and recall only the task-scoped, token-budgeted slice they need. Local-first, hybrid retrieval, full provenance.' \
+               -f homepage='https://pypi.org/project/context-bridge-memory/' >/dev/null \
+             && gh api -X PUT "repos/$GITHUB_REPOSITORY/topics" \
+               -f 'names[]=multi-agent' -f 'names[]=ai-agents' -f 'names[]=llm' \
+               -f 'names[]=agent-memory' -f 'names[]=rag' -f 'names[]=retrieval-augmented-generation' \
+               -f 'names[]=semantic-search' -f 'names[]=vector-database' -f 'names[]=qdrant' \
+               -f 'names[]=embeddings' -f 'names[]=fastapi' -f 'names[]=python' \
+               -f 'names[]=llmops' -f 'names[]=shared-memory' -f 'names[]=memory' >/dev/null; then
+            echo "META_OK: description, homepage and topics set"
+          else
+            echo "META_FAILED: the CI token lacks repo-admin permission for metadata"
+          fi
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
