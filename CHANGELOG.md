@@ -76,3 +76,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Belief timeline / memory diff (`GET /v1/namespaces/{ns}/beliefs?query=…`):
   trace how belief about a topic evolved over time, showing which claim fell out
   of favour and when.
+- Scheduled maintenance: a one-call housekeeping cycle (`POST /v1/maintenance/run`)
+  and an optional background loop (`MAINTENANCE_INTERVAL_SECONDS`) that sweeps TTL
+  and runs per-namespace auto-resolve / consolidation / lesson distillation.
+- Event webhooks: best-effort notifications (`WEBHOOK_URLS`) for notable events —
+  `conflict.opened`, `conflict.resolved`, `lesson.created` — that never block or
+  fail a memory operation.
+- Namespace portability: export a namespace's memories, lessons and procedures to
+  a portable, vector-free document (`GET /v1/namespaces/{ns}/export`) and restore
+  it — re-embedding on the way in — into any namespace (`POST …/import`).

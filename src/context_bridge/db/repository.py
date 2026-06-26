@@ -100,6 +100,12 @@ class EpisodeRepository:
                     hits += 1
         return {"writes": int(writes or 0), "queries": int(queries or 0), "query_hits": hits}
 
+    def namespaces(self) -> list[str]:
+        """Distinct namespaces seen so far (used to drive scheduled maintenance)."""
+        stmt = select(Episode.namespace).distinct().order_by(Episode.namespace.asc())
+        with self.db.session() as session:
+            return list(session.scalars(stmt))
+
 
 class ParentRepository:
     """Stores and retrieves parent documents for the small-to-big strategy."""

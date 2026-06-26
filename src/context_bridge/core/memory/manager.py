@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 from context_bridge.core.chunking.base import Chunker
 from context_bridge.core.embeddings.base import Embedder
+from context_bridge.core.events import EventEmitter, NullEmitter
 from context_bridge.core.graph.extractor import Extractor, RuleBasedExtractor
 from context_bridge.core.memory.consolidation import cluster_by_similarity
 from context_bridge.core.memory.contradiction import ContradictionDetector, NullDetector
@@ -112,6 +113,7 @@ class MemoryManager:
         defaults: RetrievalParams,
         summarizer: Summarizer | None = None,
         cognitive: CognitiveServices | None = None,
+        events: EventEmitter | None = None,
     ) -> None:
         self.chunker = chunker
         self.embedder = embedder
@@ -124,6 +126,7 @@ class MemoryManager:
         self.defaults = defaults
         self.summarizer = summarizer or ExtractiveSummarizer()
         self.cog = cognitive or CognitiveServices()
+        self.events = events or NullEmitter()
 
     # -- write path -------------------------------------------------------
     def write(
@@ -275,6 +278,11 @@ class MemoryManager:
                         memory_id_a=rec.id,
                         memory_id_b=nb.id,
                         similarity=sim,
+                    )
+                    self.events.emit(
+                        "conflict.opened",
+                        namespace,
+                        {"memory_id_a": rec.id, "memory_id_b": nb.id, "similarity": round(sim, 4)},
                     )
                     break
 
@@ -517,7 +525,7 @@ class MemoryManager:
             return None
         severity = severity if severity in _SEVERITY_BOOST else "medium"
         embedding = self.embedder.embed_query_dense(trigger)
-        return self.cog.lessons.add(
+        lesson_id = self.cog.lessons.add(
             namespace=namespace,
             trigger=trigger,
             guidance=guidance,
@@ -526,6 +534,12 @@ class MemoryManager:
             created_by=created_by,
             source_session=session_id,
         )
+        self.events.emit(
+            "lesson.created",
+            namespace,
+            {"id": lesson_id, "severity": severity, "trigger": trigger[:280]},
+        )
+        return lesson_id
 
     def relevant_lessons(
         self,
@@ -649,6 +663,11 @@ class MemoryManager:
         if winner_id and self.cog.belief_revision:
             loser_id = row["memory_id_b"] if winner_id == row["memory_id_a"] else row["memory_id_a"]
             self._decay_confidence(loser_id, namespace=row["namespace"])
+        self.events.emit(
+            "conflict.resolved",
+            row["namespace"],
+            {"conflict_id": conflict_id, "winner_id": winner_id},
+        )
         return True
 
     def _decay_confidence(self, memory_id: str, *, namespace: str) -> None:
@@ -825,6 +844,130 @@ class MemoryManager:
             "agents": self.cog.agents.count(namespace) if self.cog.agents else 0,
             "quality_score": self.collaboration_quality(namespace=namespace)["score"],
         }
+
+    # -- scheduled maintenance -------------------------------------------
+    def run_maintenance(
+        self,
+        *,
+        auto_resolve: bool = True,
+        consolidate: bool = False,
+        distill_lessons: bool = False,
+        min_gap: float = 0.3,
+        consolidation_min_cluster: int = 3,
+        consolidation_similarity: float = 0.83,
+        lesson_distill_min_cluster: int = 2,
+        lesson_distill_similarity: float = 0.83,
+    ) -> dict:
+        """Run one housekeeping cycle: sweep, then per-namespace upkeep.
+
+        This is the shared brain's background "sleep": TTL-expired memories are
+        purged globally, then each active namespace gets decisive contradictions
+        auto-closed and (optionally) its memories consolidated and failure
+        lessons distilled. Safe to call on a timer or on demand.
+        """
+        swept = self.sweep_expired()
+        namespaces = self.episodes.namespaces()
+        conflicts_resolved = insights = lessons_created = 0
+        for namespace in namespaces:
+            if auto_resolve:
+                conflicts_resolved += self.auto_resolve_conflicts(
+                    namespace=namespace, min_gap=min_gap
+                )["resolved"]
+            if consolidate:
+                insights += self.consolidate(
+                    namespace=namespace,
+                    min_cluster=consolidation_min_cluster,
+                    similarity=consolidation_similarity,
+                )["insights"]
+            if distill_lessons:
+                lessons_created += self.distill_lessons(
+                    namespace=namespace,
+                    min_cluster=lesson_distill_min_cluster,
+                    similarity=lesson_distill_similarity,
+                )["lessons_created"]
+        return {
+            "swept": swept,
+            "namespaces": len(namespaces),
+            "conflicts_resolved": conflicts_resolved,
+            "insights": insights,
+            "lessons_created": lessons_created,
+        }
+
+    # -- portability (backup / migrate / share) --------------------------
+    def export_namespace(self, *, namespace: str, scan_limit: int = 5000) -> dict:
+        """Serialize a namespace's knowledge to a portable, vector-free document."""
+        memories: list[dict] = []
+        cursor: str | None = None
+        remaining = scan_limit
+        while remaining > 0:
+            page = min(256, remaining)
+            chunks, cursor = self.store.list_records(namespace=namespace, limit=page, cursor=cursor)
+            for c in chunks:
+                memories.append(
+                    {
+                        "content": c.content,
+                        "agent_id": c.provenance.agent_id,
+                        "session_id": c.provenance.session_id,
+                        "task_id": c.provenance.task_id,
+                        "source": c.provenance.source,
+                        "confidence": c.provenance.confidence,
+                        "tags": list(c.tags),
+                        "metadata": dict(c.metadata),
+                    }
+                )
+            remaining -= page
+            if not chunks or cursor is None:
+                break
+        return {
+            "namespace": namespace,
+            "version": 1,
+            "memories": memories,
+            "lessons": self.list_lessons(namespace=namespace),
+            "procedures": self.list_procedures(namespace=namespace),
+        }
+
+    def import_namespace(self, *, namespace: str, payload: dict) -> dict:
+        """Recreate memories, lessons and procedures from an exported document.
+
+        Vectors are re-embedded on the way in, so an export stays small and
+        portable across embedding models.
+        """
+        memories = 0
+        for m in payload.get("memories", []):
+            result = self.write(
+                content=m["content"],
+                agent_id=m.get("agent_id", "import"),
+                session_id=m.get("session_id", "import"),
+                task_id=m.get("task_id"),
+                namespace=namespace,
+                tags=list(m.get("tags", [])),
+                confidence=m.get("confidence", 1.0),
+                metadata=dict(m.get("metadata", {})),
+                source=m.get("source"),
+                dedup=False,
+            )
+            memories += result.stored
+        lessons = 0
+        for lesson in payload.get("lessons", []):
+            if self.record_lesson(
+                namespace=namespace,
+                trigger=lesson["trigger"],
+                guidance=lesson["guidance"],
+                severity=lesson.get("severity", "medium"),
+                created_by=lesson.get("created_by"),
+            ):
+                lessons += 1
+        procedures = 0
+        for proc in payload.get("procedures", []):
+            if self.create_procedure(
+                namespace=namespace,
+                title=proc["title"],
+                steps=list(proc.get("steps", [])),
+                tags=list(proc.get("tags", [])),
+                created_by=proc.get("created_by"),
+            ):
+                procedures += 1
+        return {"memories": memories, "lessons": lessons, "procedures": procedures}
 
     # -- read path --------------------------------------------------------
     def query(

@@ -52,23 +52,43 @@ async def _sweep_loop(app: FastAPI, interval: int) -> None:
             logger.exception("ttl sweep failed")
 
 
+async def _maintenance_loop(app: FastAPI, interval: int) -> None:
+    """Periodically run a full housekeeping cycle until cancelled."""
+    from context_bridge.api.routes.maintenance import _run_maintenance
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            settings = app.state.settings
+            result = await asyncio.to_thread(
+                _run_maintenance, app.state.container.manager, settings
+            )
+            logger.info("maintenance cycle: %s", result)
+        except Exception:  # pragma: no cover - defensive background task
+            logger.exception("maintenance cycle failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Build the component graph once at startup, tear down at shutdown."""
     settings: Settings = app.state.settings
     app.state.container = build_container(settings)
 
-    sweeper: asyncio.Task | None = None
+    tasks: list[asyncio.Task] = []
     if settings.sweep_interval_seconds > 0:
-        sweeper = asyncio.create_task(_sweep_loop(app, settings.sweep_interval_seconds))
+        tasks.append(asyncio.create_task(_sweep_loop(app, settings.sweep_interval_seconds)))
+    if settings.maintenance_interval_seconds > 0:
+        tasks.append(
+            asyncio.create_task(_maintenance_loop(app, settings.maintenance_interval_seconds))
+        )
 
     try:
         yield
     finally:
-        if sweeper is not None:
-            sweeper.cancel()
+        for task in tasks:
+            task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
-                await sweeper
+                await task
         app.state.container = None
 
 

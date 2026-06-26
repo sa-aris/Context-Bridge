@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
+    def webhook_url_list(self) -> list[str]:
+        return [u.strip() for u in self.webhook_urls.split(",") if u.strip()]
+
     # Vector store
     qdrant_url: str = ":memory:"
     qdrant_api_key: str | None = None
@@ -116,6 +119,15 @@ class Settings(BaseSettings):
 
     # Maintenance — background TTL sweep (0 disables the periodic job)
     sweep_interval_seconds: int = 0
+    # Background maintenance cycle (sweep + per-namespace upkeep); 0 disables.
+    maintenance_interval_seconds: int = 0
+    maintenance_auto_resolve: bool = True
+    maintenance_consolidate: bool = False
+    maintenance_distill_lessons: bool = False
+
+    # Event webhooks — comma-separated URLs notified of notable memory events.
+    webhook_urls: str = ""
+    webhook_timeout_seconds: float = 5.0
 
     # Cognitive layer
     redact_pii: bool = False

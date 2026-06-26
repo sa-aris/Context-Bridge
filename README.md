@@ -189,6 +189,9 @@ The pool doesn't just remember — the *team* gets better over time:
 | 🩺 **Memory health panel** | One pulse-check per namespace: volume, trust distribution, conflicts, lessons, quality (`GET /v1/namespaces/{ns}/health`) |
 | ⚖️ **Auto conflict resolution** | Close contradictions automatically when one side decisively leads, leaving ambiguous ones for a human (`POST /v1/conflicts/auto-resolve`) |
 | 🧬 **Belief timeline** | A memory diff: how belief about a topic changed over time — which claim fell out of favour, and when (`GET /v1/namespaces/{ns}/beliefs`) |
+| ⏱️ **Scheduled maintenance** | One housekeeping cycle — sweep + auto-resolve + consolidate + distill — on demand or on a timer (`POST /v1/maintenance/run`) |
+| 📡 **Event webhooks** | Best-effort notifications on `conflict.opened` / `conflict.resolved` / `lesson.created`, never blocking a write (`WEBHOOK_URLS`) |
+| 📦 **Namespace portability** | Export a namespace to a portable, vector-free document and restore it anywhere — re-embedded on import (`/v1/namespaces/{ns}/export` · `…/import`) |
 
 ## Install
 
@@ -302,6 +305,7 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `POST` | `/v1/sessions/{id}/distill` | Promote salient turns into durable cross-session memory |
 | `POST` | `/v1/maintenance/sweep` | Delete TTL-expired memories |
 | `POST` | `/v1/maintenance/consolidate` | Cluster & synthesize insights for a namespace |
+| `POST` | `/v1/maintenance/run` | Run a full housekeeping cycle (sweep + per-namespace upkeep) |
 | `GET` | `/v1/conflicts` · `POST /v1/conflicts/{id}/resolve` | Inspect / resolve contradictions |
 | `POST` | `/v1/conflicts/auto-resolve` | Auto-close decisive contradictions (belief revision) |
 | `GET` | `/v1/graph/neighbors` | Traverse the knowledge graph |
@@ -315,6 +319,7 @@ An `AsyncContextBridgeClient` with the same surface is available for async agent
 | `GET` | `/v1/quality` | Collaboration-quality score for a namespace |
 | `GET` | `/v1/namespaces/{ns}/health` | Memory health panel for a namespace |
 | `GET` | `/v1/namespaces/{ns}/beliefs?query=…` | Belief timeline (memory diff) for a topic |
+| `GET` · `POST` | `/v1/namespaces/{ns}/export` · `…/import` | Back up / migrate a namespace's knowledge |
 | `GET` | `/health` · `/healthz` · `/metrics` | Liveness · readiness · Prometheus |
 
 Interactive OpenAPI docs are served at `/docs`.

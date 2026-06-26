@@ -201,6 +201,28 @@ class ConsolidateResponse(BaseModel):
     insights: int
 
 
+class MaintenanceRunResponse(BaseModel):
+    swept: int
+    namespaces: int
+    conflicts_resolved: int
+    insights: int
+    lessons_created: int
+
+
+class NamespaceExport(BaseModel):
+    namespace: str
+    version: int = 1
+    memories: list[dict] = Field(default_factory=list)
+    lessons: list[dict] = Field(default_factory=list)
+    procedures: list[dict] = Field(default_factory=list)
+
+
+class ImportResponse(BaseModel):
+    memories: int
+    lessons: int
+    procedures: int
+
+
 class ConflictResolveRequest(BaseModel):
     winner_id: str | None = None
 
