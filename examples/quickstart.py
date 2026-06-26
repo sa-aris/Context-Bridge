@@ -92,7 +92,7 @@ def main() -> None:
     )
     brief = cb.preflight(task="tune the payment service timeout", namespace=NS)
     for lesson in brief["lessons"]:
-        print(f"  ⚠ ({lesson['severity']}) {lesson['guidance']}")
+        print(f"  [!] ({lesson['severity']}) {lesson['guidance']}")
 
     _rule("Close the loop, then read the namespace's pulse")
     cb.record_feedback(memory_id=result.chunks[0].id, namespace=NS, useful=True)
