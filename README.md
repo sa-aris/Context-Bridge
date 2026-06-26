@@ -6,6 +6,8 @@
 
 *Stop passing giant transcripts between agents. Give them a shared memory and let each one recall only what it needs.*
 
+<img src="docs/assets/demo.svg" alt="Context Bridge quickstart: three agents share one memory pool and a fourth recalls only the relevant, budgeted slice" width="780">
+
 [![CI](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/sa-aris/context-bridge/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/context-bridge-memory.svg)](https://pypi.org/project/context-bridge-memory/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -232,7 +234,16 @@ and point `QDRANT_URL` / `DATABASE_URL` at real services. See
 
 ## Demo
 
-**Write two memories from two different agents, then recall just the relevant one:**
+Run the whole tour offline in one command — it uses real local embeddings
+(a small model is fetched once) and needs no external services:
+
+```bash
+python examples/quickstart.py
+```
+
+<img src="docs/assets/demo.svg" alt="Context Bridge quickstart output" width="780">
+
+Or drive it over HTTP. **Write two memories from two different agents, then recall just the relevant one:**
 
 ```bash
 # Agent 1 writes

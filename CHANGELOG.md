@@ -92,3 +92,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Extended SDK: synchronous and async clients now cover the learning loop, failure
   memory, preflight, truth-maintenance, graph, quality, health, belief timeline
   and namespace import/export.
+- Runnable offline demo (`examples/quickstart.py`) and an embedded terminal
+  render of its output in the README.
