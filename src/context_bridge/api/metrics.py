@@ -27,12 +27,27 @@ QUERY_CHUNKS = Histogram(
 )
 
 SWEEP_DELETED = Counter("cb_sweep_deleted_total", "Expired memories removed by sweeps")
+MAINTENANCE_RUNS = Counter("cb_maintenance_runs_total", "Maintenance cycles executed")
+
+EVENTS = Counter("cb_events_total", "Notable memory events emitted", labelnames=("type",))
 
 REQUEST_LATENCY = Histogram(
     "cb_request_latency_seconds",
     "HTTP request latency",
     labelnames=("method", "endpoint", "status"),
 )
+
+
+class MetricsEmitter:
+    """An :class:`EventEmitter` that records each event as a Prometheus counter.
+
+    This keeps the core domain layer free of any metrics dependency: events are
+    emitted there, and the wiring layer composes this emitter to observe them.
+    """
+
+    def emit(self, event_type: str, namespace: str, data: dict) -> None:
+        EVENTS.labels(type=event_type).inc()
+
 
 router = APIRouter(tags=["metrics"])
 

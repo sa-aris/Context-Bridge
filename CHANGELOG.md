@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-26
+
 ### Added
 
 - Shared-memory core: governed write path (chunk → embed → dedup/confidence →
@@ -85,3 +87,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Namespace portability: export a namespace's memories, lessons and procedures to
   a portable, vector-free document (`GET /v1/namespaces/{ns}/export`) and restore
   it — re-embedding on the way in — into any namespace (`POST …/import`).
+- Cognitive-layer observability: `cb_events_total{type}`, `cb_maintenance_runs_total`
+  metrics and Grafana panels for conflicts, lessons and maintenance.
+- Extended SDK: synchronous and async clients now cover the learning loop, failure
+  memory, preflight, truth-maintenance, graph, quality, health, belief timeline
+  and namespace import/export.

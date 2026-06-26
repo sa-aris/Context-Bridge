@@ -7,7 +7,7 @@
   "tags": ["context-bridge"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-1h", "to": "now" },
   "refresh": "10s",
   "panels": [
@@ -123,6 +123,69 @@
         {
           "refId": "A",
           "expr": "sum(rate(cb_query_chunks_returned_sum[5m])) / clamp_min(sum(rate(cb_query_chunks_returned_count[5m])), 1)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Cognitive layer",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Open conflicts (net)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 23 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min(sum(cb_events_total{type=\"conflict.opened\"}) - sum(cb_events_total{type=\"conflict.resolved\"}), 0)"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Lessons captured",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 23 },
+      "targets": [
+        { "refId": "A", "expr": "sum(cb_events_total{type=\"lesson.created\"})" }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Maintenance runs",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 23 },
+      "targets": [
+        { "refId": "A", "expr": "sum(cb_maintenance_runs_total)" }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Expired swept",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 23 },
+      "targets": [
+        { "refId": "A", "expr": "sum(cb_sweep_deleted_total)" }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Memory events / sec by type",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{type}}",
+          "expr": "sum(rate(cb_events_total[5m])) by (type)"
         }
       ]
     }

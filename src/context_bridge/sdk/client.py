@@ -8,6 +8,7 @@ asynchronous client are provided.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import TracebackType
 from typing import Any
 
@@ -141,6 +142,115 @@ class ContextBridgeClient:
         resp = self._client.delete(f"/memory/{record_id}")
         resp.raise_for_status()
 
+    def forget(
+        self, *, namespace: str | None = None, session_id: str | None = None
+    ) -> dict[str, Any]:
+        """Erase all memory for a namespace and/or session (right-to-be-forgotten)."""
+        params = {"namespace": namespace, "session_id": session_id}
+        return self._json("DELETE", "/memory", params={k: v for k, v in params.items() if v})
+
+    # -- learning loop ----------------------------------------------------
+    def feedback(
+        self, memory_id: str, *, namespace: str = "default", useful: bool, weight: float = 1.0
+    ) -> None:
+        """Signal whether a recalled memory was useful, re-ranking future recall."""
+        body = {"memory_id": memory_id, "namespace": namespace, "useful": useful, "weight": weight}
+        resp = self._client.post("/memory/feedback", json=body)
+        resp.raise_for_status()
+
+    def record_outcome(self, session_id: str, *, success: bool, **kwargs: Any) -> dict[str, Any]:
+        """Credit a session's memories and agents by its outcome (with optional lesson)."""
+        return self._json(
+            "POST", "/outcomes", {"session_id": session_id, "success": success, **kwargs}
+        )
+
+    def agents(self, *, namespace: str = "default", limit: int = 20) -> dict[str, Any]:
+        return self._json("GET", "/agents", params={"namespace": namespace, "limit": limit})
+
+    def create_procedure(self, title: str, steps: Sequence[str], **kwargs: Any) -> dict[str, Any]:
+        return self._json("POST", "/procedures", {"title": title, "steps": list(steps), **kwargs})
+
+    def procedures(self, *, namespace: str = "default", query: str | None = None) -> dict[str, Any]:
+        params = {"namespace": namespace, "query": query}
+        return self._json("GET", "/procedures", params={k: v for k, v in params.items() if v})
+
+    # -- failure memory ---------------------------------------------------
+    def record_lesson(self, trigger: str, guidance: str, **kwargs: Any) -> dict[str, Any]:
+        """Capture a lesson so a past mistake is flagged before it recurs."""
+        return self._json("POST", "/lessons", {"trigger": trigger, "guidance": guidance, **kwargs})
+
+    def lessons(self, *, namespace: str = "default", limit: int = 100) -> dict[str, Any]:
+        return self._json("GET", "/lessons", params={"namespace": namespace, "limit": limit})
+
+    def confirm_lesson(self, lesson_id: str, *, namespace: str = "default") -> None:
+        resp = self._client.post(f"/lessons/{lesson_id}/confirm", params={"namespace": namespace})
+        resp.raise_for_status()
+
+    def distill_lessons(self, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("POST", "/lessons/distill", params={"namespace": namespace})
+
+    def preflight(self, task: str, *, namespace: str = "default", limit: int = 5) -> dict[str, Any]:
+        """Brief: lessons to avoid + playbooks that worked, before starting a task."""
+        return self._json(
+            "POST", "/preflight", {"task": task, "namespace": namespace, "limit": limit}
+        )
+
+    # -- truth maintenance & graph ---------------------------------------
+    def conflicts(self, *, namespace: str = "default", status: str | None = None) -> dict[str, Any]:
+        params = {"namespace": namespace, "status": status}
+        return self._json("GET", "/conflicts", params={k: v for k, v in params.items() if v})
+
+    def resolve_conflict(
+        self, conflict_id: str, *, namespace: str = "default", winner_id: str | None = None
+    ) -> None:
+        resp = self._client.post(
+            f"/conflicts/{conflict_id}/resolve",
+            json={"winner_id": winner_id},
+            params={"namespace": namespace},
+        )
+        resp.raise_for_status()
+
+    def auto_resolve_conflicts(self, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("POST", "/conflicts/auto-resolve", params={"namespace": namespace})
+
+    def graph_neighbors(
+        self, entity: str, *, namespace: str = "default", hops: int = 1
+    ) -> dict[str, Any]:
+        params = {"entity": entity, "namespace": namespace, "hops": hops}
+        return self._json("GET", "/graph/neighbors", params=params)
+
+    def align_graph(self, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("POST", "/graph/align", {"namespace": namespace})
+
+    def add_alias(
+        self, alias: str, canonical: str, *, namespace: str = "default"
+    ) -> dict[str, Any]:
+        body = {"alias": alias, "canonical": canonical, "namespace": namespace}
+        return self._json("POST", "/graph/aliases", body)
+
+    # -- insight & operations --------------------------------------------
+    def quality(self, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("GET", "/quality", params={"namespace": namespace})
+
+    def health(self, *, namespace: str = "default") -> dict[str, Any]:
+        """The namespace memory-health panel."""
+        return self._json("GET", f"/namespaces/{namespace}/health")
+
+    def beliefs(self, query: str, *, namespace: str = "default", limit: int = 50) -> dict[str, Any]:
+        """The belief timeline (memory diff) for a topic."""
+        return self._json(
+            "GET", f"/namespaces/{namespace}/beliefs", params={"query": query, "limit": limit}
+        )
+
+    def export_namespace(self, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("GET", f"/namespaces/{namespace}/export")
+
+    def import_namespace(self, payload: dict, *, namespace: str = "default") -> dict[str, Any]:
+        return self._json("POST", f"/namespaces/{namespace}/import", payload)
+
+    def run_maintenance(self) -> dict[str, Any]:
+        return self._json("POST", "/maintenance/run")
+
     def _json(
         self,
         method: str,
@@ -191,6 +301,33 @@ class AsyncContextBridgeClient:
 
     async def get(self, record_id: str) -> dict[str, Any]:
         return await self._json("GET", f"/memory/{record_id}")
+
+    async def feedback(
+        self, memory_id: str, *, namespace: str = "default", useful: bool, weight: float = 1.0
+    ) -> None:
+        body = {"memory_id": memory_id, "namespace": namespace, "useful": useful, "weight": weight}
+        resp = await self._client.post("/memory/feedback", json=body)
+        resp.raise_for_status()
+
+    async def record_outcome(
+        self, session_id: str, *, success: bool, **kwargs: Any
+    ) -> dict[str, Any]:
+        return await self._json(
+            "POST", "/outcomes", {"session_id": session_id, "success": success, **kwargs}
+        )
+
+    async def preflight(
+        self, task: str, *, namespace: str = "default", limit: int = 5
+    ) -> dict[str, Any]:
+        return await self._json(
+            "POST", "/preflight", {"task": task, "namespace": namespace, "limit": limit}
+        )
+
+    async def quality(self, *, namespace: str = "default") -> dict[str, Any]:
+        return await self._json("GET", "/quality", params={"namespace": namespace})
+
+    async def health(self, *, namespace: str = "default") -> dict[str, Any]:
+        return await self._json("GET", f"/namespaces/{namespace}/health")
 
     async def _json(
         self,

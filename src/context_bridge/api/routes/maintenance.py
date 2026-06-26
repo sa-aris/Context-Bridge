@@ -72,4 +72,5 @@ def run_maintenance(
     authorize(request, "*", "write")
     result = _run_maintenance(manager, request.app.state.settings)
     metrics.SWEEP_DELETED.inc(result["swept"])
+    metrics.MAINTENANCE_RUNS.inc()
     return MaintenanceRunResponse(**result)

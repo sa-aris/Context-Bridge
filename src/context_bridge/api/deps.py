@@ -10,7 +10,7 @@ from context_bridge.config import Settings
 from context_bridge.core.chunking import build_chunker
 from context_bridge.core.embeddings import build_embedder
 from context_bridge.core.embeddings.base import Embedder
-from context_bridge.core.events import build_emitter
+from context_bridge.core.events import CompositeEmitter, EventEmitter, build_emitter
 from context_bridge.core.graph.extractor import build_extractor
 from context_bridge.core.memory.contradiction import build_detector
 from context_bridge.core.memory.manager import CognitiveServices, MemoryManager
@@ -115,9 +115,21 @@ def build_container(settings: Settings) -> Container:
         defaults=defaults,
         summarizer=build_summarizer(settings),
         cognitive=cognitive,
-        events=build_emitter(settings.webhook_url_list(), timeout=settings.webhook_timeout_seconds),
+        events=_build_events(settings),
     )
     return Container(settings=settings, embedder=embedder, store=store, db=db, manager=manager)
+
+
+def _build_events(settings: Settings) -> EventEmitter:
+    """Compose the event sinks: Prometheus metrics (if enabled) plus webhooks."""
+    from context_bridge.api.metrics import MetricsEmitter
+
+    sinks: list[EventEmitter] = []
+    if settings.metrics_enabled:
+        sinks.append(MetricsEmitter())
+    webhooks = build_emitter(settings.webhook_url_list(), timeout=settings.webhook_timeout_seconds)
+    sinks.append(webhooks)
+    return CompositeEmitter(sinks)
 
 
 def get_container(request: Request) -> Container:
