@@ -1,11 +1,12 @@
 # Observability stack — run alongside the app to scrape and visualize metrics:
-#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#   GRAFANA_ADMIN_PASSWORD='use-a-long-random-value' \
+#     docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 services:
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -14,10 +15,10 @@ services:
     image: grafana/grafana:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
