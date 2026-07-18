@@ -53,6 +53,21 @@ def _do_write(manager: MemoryManager, req: WriteRequest) -> WriteResponse:
     )
 
 
+def _assert_session_namespace(
+    manager: MemoryManager,
+    *,
+    session_id: str,
+    namespace: str,
+) -> None:
+    """Reject namespace-sensitive session operations when an id is shared across tenants."""
+    episodes = manager.timeline(session_id, limit=10_000)
+    if any(episode.get("namespace") != namespace for episode in episodes):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="session_id is shared by multiple namespaces; use a tenant-unique session id",
+        )
+
+
 @router.post("/write", response_model=WriteResponse)
 def write_memory(
     req: WriteRequest, request: Request, manager: MemoryManager = Depends(get_manager)
@@ -180,15 +195,28 @@ def forget_memory(
 
 
 @router.get("/{record_id}", response_model=ChunkOut)
-def get_memory(record_id: str, manager: MemoryManager = Depends(get_manager)) -> ChunkOut:
+def get_memory(
+    record_id: str,
+    request: Request,
+    manager: MemoryManager = Depends(get_manager),
+) -> ChunkOut:
     chunk = manager.get(record_id)
     if chunk is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
+    authorize(request, chunk.namespace, "read")
     return ChunkOut.from_chunk(chunk)
 
 
 @router.delete("/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_memory(record_id: str, manager: MemoryManager = Depends(get_manager)) -> None:
+def delete_memory(
+    record_id: str,
+    request: Request,
+    manager: MemoryManager = Depends(get_manager),
+) -> None:
+    chunk = manager.get(record_id)
+    if chunk is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
+    authorize(request, chunk.namespace, "write")
     manager.delete([record_id])
 
 
@@ -197,10 +225,13 @@ def submit_feedback(
     req: FeedbackRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> None:
     """Signal whether a recalled memory was useful; re-ranks future recall."""
-    authorize(request, req.namespace, "write")
+    chunk = manager.get(req.memory_id)
+    if chunk is None or chunk.namespace != req.namespace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
+    authorize(request, chunk.namespace, "write")
     manager.record_feedback(
         memory_id=req.memory_id,
-        namespace=req.namespace,
+        namespace=chunk.namespace,
         useful=req.useful,
         weight=req.weight,
     )
@@ -211,6 +242,7 @@ def summarize_session(
     req: SummarizeRequest, request: Request, manager: MemoryManager = Depends(get_manager)
 ) -> SummarizeResponse:
     authorize(request, req.namespace, "write")
+    _assert_session_namespace(manager, session_id=req.session_id, namespace=req.namespace)
     result = manager.summarize_session(
         session_id=req.session_id,
         namespace=req.namespace,
