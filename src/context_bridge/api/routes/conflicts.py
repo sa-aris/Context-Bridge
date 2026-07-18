@@ -47,5 +47,22 @@ def resolve_conflict(
     manager: MemoryManager = Depends(get_manager),
 ) -> None:
     authorize(request, namespace, "write")
+    conflict = next(
+        (
+            item
+            for item in manager.list_conflicts(namespace=namespace)
+            if item.get("id") == conflict_id
+        ),
+        None,
+    )
+    if conflict is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conflict not found")
+
+    valid_winners = {conflict.get("memory_id_a"), conflict.get("memory_id_b")}
+    if req.winner_id is not None and req.winner_id not in valid_winners:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="winner_id must be one of the conflict's memory ids",
+        )
     if not manager.resolve_conflict(conflict_id, winner_id=req.winner_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conflict not found")
