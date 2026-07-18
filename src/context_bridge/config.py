@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     )
 
     # API
+    app_env: str = "development"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     log_level: str = "info"
@@ -67,6 +69,25 @@ class Settings(BaseSettings):
 
     def webhook_url_list(self) -> list[str]:
         return [u.strip() for u in self.webhook_urls.split(",") if u.strip()]
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Settings:
+        """Refuse to boot a production service with fail-open security defaults."""
+        if self.app_env.strip().lower() not in {"production", "prod"}:
+            return self
+
+        keys = self.api_key_set()
+        if not keys:
+            raise ValueError("API_KEYS must be configured when APP_ENV=production")
+        if any(len(key) < 32 for key in keys):
+            raise ValueError("every production API key must contain at least 32 characters")
+        if self.rate_limit_per_minute <= 0:
+            raise ValueError("RATE_LIMIT_PER_MINUTE must be greater than zero in production")
+
+        origins = self.cors_origin_list()
+        if not origins or "*" in origins:
+            raise ValueError("wildcard or empty CORS origins are forbidden in production")
+        return self
 
     # Vector store
     qdrant_url: str = ":memory:"
