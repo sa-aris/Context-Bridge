@@ -20,6 +20,21 @@ from context_bridge.core.memory.manager import MemoryManager
 router = APIRouter(tags=["learning"])
 
 
+def _assert_session_namespace(
+    manager: MemoryManager,
+    *,
+    session_id: str,
+    namespace: str,
+) -> None:
+    """Prevent outcome credit from crossing tenant boundaries via a shared id."""
+    episodes = manager.timeline(session_id, limit=10_000)
+    if any(episode.get("namespace") != namespace for episode in episodes):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="session_id is shared by multiple namespaces; use a tenant-unique session id",
+        )
+
+
 @router.get("/agents", response_model=AgentsResponse)
 def agent_leaderboard(
     request: Request,
@@ -38,6 +53,7 @@ def record_outcome(
 ) -> OutcomeResponse:
     """Credit a session's memories and agents by its task outcome."""
     authorize(request, req.namespace, "write")
+    _assert_session_namespace(manager, session_id=req.session_id, namespace=req.namespace)
     result = manager.record_outcome(
         session_id=req.session_id,
         namespace=req.namespace,
@@ -91,5 +107,9 @@ def procedure_outcome(
 ) -> None:
     """Record whether using a playbook succeeded, so good ones rise."""
     authorize(request, namespace, "write")
-    if not manager.record_procedure_outcome(procedure_id, success=req.success):
+    exists = any(
+        procedure.get("id") == procedure_id
+        for procedure in manager.list_procedures(namespace=namespace, limit=10_000)
+    )
+    if not exists or not manager.record_procedure_outcome(procedure_id, success=req.success):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="procedure not found")

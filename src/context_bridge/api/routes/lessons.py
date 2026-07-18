@@ -74,7 +74,11 @@ def confirm_lesson(
 ) -> None:
     """Record that a surfaced lesson actually helped, so it ranks higher."""
     authorize(request, namespace, "write")
-    if not manager.confirm_lesson(lesson_id):
+    exists = any(
+        lesson.get("id") == lesson_id
+        for lesson in manager.list_lessons(namespace=namespace, limit=10_000)
+    )
+    if not exists or not manager.confirm_lesson(lesson_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="lesson not found")
 
 

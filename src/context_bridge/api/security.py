@@ -1,13 +1,14 @@
 """API-key authentication, namespace authorization and rate limiting.
 
-All opt-in: with no API keys the service is open; with ``RATE_LIMIT_PER_MINUTE=0``
-the limiter is a no-op. API keys may be scoped to specific namespaces for
-multi-tenant deployments. The in-memory limiter suits a single replica; the
-Redis backend shares state across replicas for horizontal scaling.
+Development remains opt-in. Production configuration is validated separately so
+fail-open defaults cannot be used accidentally. API keys may be scoped to
+specific namespaces for multi-tenant deployments. The in-memory limiter suits a
+single replica; the Redis backend shares state across replicas.
 """
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import threading
 import time
@@ -81,10 +82,15 @@ def build_rate_limiter(settings) -> RateLimiter:
 # --------------------------------------------------------------------------- #
 # Authentication & authorization
 # --------------------------------------------------------------------------- #
+def _api_key_fingerprint(api_key: str) -> str:
+    """Return a stable non-reversible identity for logs/backends and counters."""
+    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+
+
 def _identity(request: Request) -> str:
     api_key = request.headers.get(_API_KEY_HEADER)
     if api_key:
-        return f"key:{api_key}"
+        return f"key:{_api_key_fingerprint(api_key)}"
     client = request.client
     return f"ip:{client.host if client else 'unknown'}"
 
